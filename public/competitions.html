@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COMPETITIONS — Best Artist</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { background: #0a0806; min-height: 100vh; }
+  .comp-wrap { max-width: 1000px; margin: 0 auto; padding: 40px 20px 90px; color: var(--paper); }
+
+  .comp-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    border-bottom: 2px solid rgba(245,240,230,.25); padding-bottom: 14px; margin-bottom: 30px;
+  }
+  .comp-head h1 {
+    font-family: 'Fraunces', serif; font-weight: 900;
+    font-size: clamp(1.8rem, 5vw, 3rem); letter-spacing: -.02em;
+  }
+  .comp-head h1 em { font-style: italic; color: var(--vermilion); }
+  .comp-back {
+    font-size: .72rem; font-weight: 800; letter-spacing: .18em;
+    color: var(--gold); text-decoration: none; border: 1px solid var(--gold);
+    padding: 7px 14px; white-space: nowrap;
+  }
+  .comp-back:hover { background: var(--gold); color: #0a0806; }
+
+  /* Event grouping */
+  .event-group { margin-bottom: 40px; }
+  .event-title {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    font-family: 'Fraunces', serif; font-weight: 900;
+    font-size: clamp(1.2rem, 3vw, 1.7rem); color: var(--gold);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .event-title::after { content: ""; flex: 1; height: 2px; background: rgba(185,138,30,.35); }
+  .event-title .count {
+    font-family: 'Space Grotesk'; font-size: .62rem; font-weight: 800; letter-spacing: .18em;
+    opacity: .6;
+  }
+
+  /* Battle cards grid */
+  .comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .comp-card {
+    background: rgba(245,240,230,.04);
+    border: 1.5px solid rgba(245,240,230,.15);
+    border-radius: 8px; overflow: hidden; cursor: pointer;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+  }
+  .comp-card:hover {
+    border-color: var(--gold); transform: translateY(-4px);
+    box-shadow: 0 14px 40px rgba(0,0,0,.5);
+  }
+
+  /* Card duel layout */
+  .duel { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; }
+  .fighter { padding: 14px 10px; text-align: center; min-width: 0; }
+  .fighter img {
+    width: 74px; height: 92px; object-fit: cover; border-radius: 6px;
+    border: 2px solid rgba(245,240,230,.25); filter: brightness(.85);
+  }
+  .fighter .fname {
+    font-weight: 800; font-size: .82rem; margin-top: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fighter .fcountry { font-size: .6rem; opacity: .5; letter-spacing: .08em; margin-top: 2px; }
+  .fighter .fscore {
+    font-family: 'Fraunces', serif; font-weight: 900; font-size: 1.3rem; margin-top: 6px;
+  }
+  .fighter.left .fscore { color: #ff6a54; }
+  .fighter.right .fscore { color: var(--gold); }
+  .fighter.winner img { border-color: var(--gold); box-shadow: 0 0 18px rgba(255,200,60,.45); }
+  .vs-mid {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 0 6px;
+  }
+  .vs-pill {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--vermilion); color: var(--paper);
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 900; font-size: .78rem;
+    border: 2px solid var(--paper);
+  }
+  .lead-tag { font-size: .52rem; font-weight: 800; letter-spacing: .12em; opacity: .6; text-align: center; }
+
+  .card-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px; border-top: 1px solid rgba(245,240,230,.12);
+    font-size: .6rem; letter-spacing: .16em; font-weight: 800;
+    color: rgba(245,240,230,.55);
+  }
+  .card-foot .open { color: var(--vermilion); }
+  .comp-card:hover .open { color: #fff; }
+
+  .comp-empty { text-align: center; padding: 70px 0; opacity: .5; font-size: .9rem; }
+
+  /* ===== Create competition builder ===== */
+  .create-panel {
+    background: rgba(245,240,230,.04);
+    border: 1.5px solid rgba(185,138,30,.5);
+    border-radius: 10px;
+    padding: 22px 24px; margin-bottom: 36px;
+  }
+  .create-panel h2 {
+    font-family: 'Fraunces', serif; font-weight: 900; margin: 0 0 4px;
+    font-size: clamp(1.1rem, 3vw, 1.5rem); color: var(--gold);
+  }
+  .create-panel .hint { font-size: .72rem; opacity: .55; letter-spacing: .06em; margin: 0 0 18px; }
+  .create-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: end; }
+  @media (max-width: 640px) { .create-row { grid-template-columns: 1fr; } }
+  .field label {
+    display: block; font-size: .6rem; font-weight: 800; letter-spacing: .2em;
+    opacity: .6; margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%; padding: 11px 13px;
+    background: rgba(245,240,230,.07);
+    border: 1.5px solid rgba(245,240,230,.3);
+    color: var(--paper); font-family: inherit; font-weight: 700; font-size: .9rem;
+    border-radius: 4px; outline: none;
+  }
+  .field input:focus { border-color: var(--vermilion); }
+  .vs-sep {
+    display: grid; place-items: center; height: 42px;
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 900;
+    color: var(--vermilion); font-size: 1rem;
+  }
+  .pick-wrap { position: relative; }
+  .pick-results {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+    z-index: 50; max-height: 260px; overflow-y: auto;
+    background: rgba(16,13,10,.98); border: 1.5px solid var(--gold);
+    box-shadow: 6px 6px 0 rgba(217,58,38,.7); border-radius: 4px;
+  }
+  .pick-results.open { display: block; }
+  .pick-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    cursor: pointer; color: rgba(245,240,230,.85); font-size: .8rem; font-weight: 600;
+  }
+  .pick-item:hover { background: rgba(217,58,38,.35); color: #fff; }
+  .pick-item img { width: 30px; height: 38px; object-fit: cover; border-radius: 3px; }
+  .pick-item .pc { font-size: .6rem; opacity: .5; margin-left: auto; letter-spacing: .08em; }
+  .pick-item.sel { background: rgba(185,138,30,.35); }
+  .create-actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
+  .btn-create {
+    padding: 13px 28px; cursor: pointer;
+    font-family: inherit; font-weight: 800; font-size: .82rem; letter-spacing: .14em;
+    background: var(--vermilion); color: #fff; border: none; border-radius: 4px;
+    transition: transform .12s, filter .15s;
+  }
+  .btn-create:hover { transform: translateY(-2px); filter: brightness(1.15); }
+  .btn-create:disabled { opacity: .5; cursor: wait; transform: none; }
+  .create-link {
+    font-size: .74rem; color: var(--gold); word-break: break-all;
+  }
+  .create-link a { color: var(--gold); }
+  .create-err { font-size: .76rem; color: #ff6a54; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="comp-wrap">
+  <div class="comp-head">
+    <h1>COMPETITION <em>LIST</em></h1>
+    <a class="comp-back" href="/">← HALL OF FAME</a>
+  </div>
+
+  <!-- Create competition builder -->
+  <section class="create-panel" id="createPanel">
+    <h2>⚔ CREATE NEW COMPETITION</h2>
+    <p class="hint">Name your event, pick two artists — the battle arena opens instantly with free spam voting.</p>
+    <div class="create-row">
+      <div class="field">
+        <label>EVENT NAME</label>
+        <input type="text" id="evName" placeholder="e.g. GRAND-FINAL-2026" maxlength="60" autocomplete="off">
+      </div>
+      <div class="vs-sep">VS</div>
+      <div></div>
+    </div>
+    <div class="create-row" style="margin-top:14px">
+      <div class="field pick-wrap">
+        <label>ARTIST A</label>
+        <input type="text" id="pickA" placeholder="Search artist A…" autocomplete="off">
+        <div class="pick-results" id="resA"></div>
+      </div>
+      <div class="vs-sep">VS</div>
+      <div class="field pick-wrap">
+        <label>ARTIST B</label>
+        <input type="text" id="pickB" placeholder="Search artist B…" autocomplete="off">
+        <div class="pick-results" id="resB"></div>
+      </div>
+    </div>
+    <div class="create-actions">
+      <button class="btn-create" id="btnCreate" onclick="createCompetition()">START THE BATTLE →</button>
+      <span class="create-link" id="createLink"></span>
+      <span class="create-err" id="createErr"></span>
+    </div>
+  </section>
+
+  <div id="compList"><p class="comp-empty">Loading competitions…</p></div>
+</div>
+
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const av = (u, name) => u
+  ? `/api/proxy-image?url=${encodeURIComponent(u)}`
+  : `https://ui-avatars.com/api/?background=16130e&color=f5f0e6&bold=true&size=160&name=${encodeURIComponent(name)}`;
+
+// ================= CREATE COMPETITION =================
+const picks = { a: null, b: null };
+
+function setupPicker(inputId, resId, side) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(resId);
+  let debounce;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (q.length < 2) { box.classList.remove('open'); return; }
+    debounce = setTimeout(async () => {
+      try {
+        const rows = await fetch(`/api/singers?search=${encodeURIComponent(q)}&limit=8`).then(r => r.json());
+        box.innerHTML = rows.length
+          ? rows.map(s => `
+            <div class="pick-item ${picks[side]?.id === s.id ? 'sel' : ''}" data-id="${s.id}">
+              <img src="${av(s.image_url, s.name)}" alt="">
+              <span>${esc(s.name)}</span>
+              <span class="pc">${esc((s.country || '').toUpperCase())}</span>
+            </div>`).join('')
+          : '<div class="pick-item" style="opacity:.5;cursor:default">No artists found</div>';
+        box.classList.add('open');
+        box.querySelectorAll('.pick-item[data-id]').forEach(el => {
+          el.addEventListener('click', () => {
+            const s = rows.find(x => x.id === +el.dataset.id);
+            picks[side] = s;
+            input.value = s.name;
+            box.classList.remove('open');
+            document.getElementById('createErr').textContent = '';
+          });
+        });
+      } catch { box.classList.remove('open'); }
+    }, 250);
+  });
+
+  input.addEventListener('blur', () => setTimeout(() => box.classList.remove('open'), 200));
+}
+
+setupPicker('pickA', 'resA', 'a');
+setupPicker('pickB', 'resB', 'b');
+
+async function createCompetition() {
+  const evName = document.getElementById('evName').value.trim().slice(0, 60);
+  const err = document.getElementById('createErr');
+  const linkEl = document.getElementById('createLink');
+  const btn = document.getElementById('btnCreate');
+
+  err.textContent = ''; linkEl.innerHTML = '';
+  if (!evName) { err.textContent = '⚠ Give your event a name first'; return; }
+  if (!picks.a || !picks.b) { err.textContent = '⚠ Pick both Artist A and Artist B'; return; }
+  if (picks.a.id === picks.b.id) { err.textContent = '⚠ An artist cannot battle themselves!'; return; }
+
+  btn.disabled = true; btn.textContent = 'CREATING…';
+  try {
+    // Creating the battle row via GET /api/battle also validates both ids
+    const d = await fetch(`/api/battle?event=${encodeURIComponent(evName)}&a=${picks.a.id}&b=${picks.b.id}`).then(r => r.json());
+    if (d.error) { err.textContent = '❌ ' + d.error; return; }
+    const url = `/battle?event=${encodeURIComponent(evName)}&a=${picks.a.id}&b=${picks.b.id}`;
+    linkEl.innerHTML = `✅ Battle created — <a href="${url}">OPEN ARENA →</a>`;
+    loadCompetitions(); // refresh list so it appears immediately
+    setTimeout(() => { location.href = url; }, 900);
+  } catch {
+    err.textContent = '❌ Failed to create battle';
+  } finally {
+    btn.disabled = false; btn.textContent = 'START THE BATTLE →';
+  }
+}
+
+// ================= COMPETITION LIST =================
+async function loadCompetitions() {
+  let battles = [];
+  try { battles = await fetch('/api/competitions').then(r => r.json()); } catch {}
+
+  const root = document.getElementById('compList');
+  if (!battles.length) {
+    root.innerHTML = '<p class="comp-empty">⚔ No competitions yet. Create one at /battle?event=ID&a=A_ID&b=B_ID</p>';
+    return;
+  }
+
+  // Group by event
+  const events = {};
+  battles.forEach(b => { (events[b.event_id] ||= []).push(b); });
+
+  root.innerHTML = Object.entries(events).map(([eventId, list]) => `
+    <div class="event-group">
+      <div class="event-title">⚔ ${esc(eventId)} <span class="count">${list.length} BATTLE${list.length > 1 ? 'S' : ''}</span></div>
+      <div class="comp-grid">
+        ${list.map(b => {
+          const aWins = b.votes_a > b.votes_b, bWins = b.votes_b > b.votes_a;
+          const diff = Math.abs(b.votes_a - b.votes_b);
+          const lead = aWins ? `${esc(b.name_a)} +${diff}` : bWins ? `${esc(b.name_b)} +${diff}` : 'TIED';
+          return `
+          <div class="comp-card" onclick="location.href='/battle?event=${encodeURIComponent(eventId)}&a=${b.singer_a}&b=${b.singer_b}'">
+            <div class="duel">
+              <div class="fighter left ${aWins ? 'winner' : ''}">
+                <img src="${av(b.img_a, b.name_a)}" alt="" loading="lazy">
+                <div class="fname">${esc(b.name_a)}</div>
+                <div class="fcountry">${esc(b.country_a || '')}</div>
+                <div class="fscore">${b.votes_a.toLocaleString()}</div>
+              </div>
+              <div class="vs-mid">
+                <div class="vs-pill">VS</div>
+                <div class="lead-tag">${lead}</div>
+              </div>
+              <div class="fighter right ${bWins ? 'winner' : ''}">
+                <img src="${av(b.img_b, b.name_b)}" alt="" loading="lazy">
+                <div class="fname">${esc(b.name_b)}</div>
+                <div class="fcountry">${esc(b.country_b || '')}</div>
+                <div class="fscore">${b.votes_b.toLocaleString()}</div>
+              </div>
+            </div>
+            <div class="card-foot">
+              <span>${new Date(b.created_at).toLocaleDateString()}</span>
+              <span class="open">OPEN BATTLE →</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ================= INIT =================
+(async () => {
+  await loadCompetitions();
+})();
+</script>
+</body>
+</html>

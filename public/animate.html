@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Animation — Best Artist</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #16130e;
+    color: #f5f0e6;
+    max-width: 760px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h1 { color: #e8b64c; }
+  .card {
+    background: #221d15;
+    border: 1px solid #3a3226;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  label { display: block; margin: 14px 0 6px; font-weight: 600; }
+  input[type="file"], select, input[type="number"] {
+    width: 100%; padding: 10px; border-radius: 8px;
+    border: 1px solid #4a4232; background: #16130e; color: #f5f0e6;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 18px; padding: 12px 28px; border: none; border-radius: 8px;
+    background: #e8b64c; color: #16130e; font-weight: 700; font-size: 16px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  #status { margin-top: 16px; min-height: 24px; color: #b8ad98; }
+  #result { text-align: center; margin-top: 20px; display: none; }
+  #result img {
+    max-width: 100%; border-radius: 12px;
+    border: 1px solid #3a3226;
+  }
+  .url-box {
+    margin-top: 12px; word-break: break-all; font-size: 13px; color: #9a9078;
+  }
+</style>
+</head>
+<body>
+
+<h1>✨ AI Artist Animation</h1>
+<p>Upload a portrait photo (or pick an artist by ID) and generate a looping nod or wave animation.</p>
+
+<div class="card">
+  <label for="image">Portrait image (optional if artist ID given)</label>
+  <input type="file" id="image" accept="image/jpeg,image/png,image/webp">
+
+  <label for="singerId">Artist ID (optional)</label>
+  <input type="number" id="singerId" min="1" placeholder="e.g. 11">
+
+  <label for="motion">Motion</label>
+  <select id="motion">
+    <option value="nod">Nod 👍</option>
+    <option value="wave">Wave 👋</option>
+  </select>
+
+  <button id="go" onclick="generate()">Generate Animation</button>
+  <div id="status"></div>
+
+  <div id="result">
+    <img id="animImg" alt="Generated animation">
+    <div class="url-box" id="animUrl"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+async function generate() {
+  const fileInput = document.getElementById('image');
+  const singerId = document.getElementById('singerId').value.trim();
+  const motion = document.getElementById('motion').value;
+  const btn = document.getElementById('go');
+  const status = document.getElementById('status');
+  const result = document.getElementById('result');
+
+  if (!fileInput.files.length && !singerId) {
+    status.textContent = '⚠️ Select an image or enter an artist ID.';
+    return;
+  }
+
+  const fd = new FormData();
+  if (fileInput.files.length) fd.append('image', fileInput.files[0]);
+  if (singerId) fd.append('singerId', singerId);
+  fd.append('motion', motion);
+
+  btn.disabled = true;
+  status.textContent = '⏳ Submitting job…';
+  result.style.display = 'none';
+
+  try {
+    const r = await fetch(API + '/api/animations', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Request failed');
+
+    status.textContent = '🎨 Generating…';
+    await poll(data.id);
+  } catch (err) {
+    status.textContent = '❌ ' + err.message;
+    btn.disabled = false;
+  }
+}
+
+async function poll(id) {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('go');
+
+  for (let i = 0; i < 60; i++) {
+    const r = await fetch(API + '/api/animations/' + id);
+    const anim = await r.json();
+
+    if (anim.status === 'completed') {
+      status.textContent = '✅ Done in ' + (anim.duration_ms / 1000).toFixed(1) + 's';
+      const img = document.getElementById('animImg');
+      img.src = anim.file_url + '?t=' + Date.now();
+      document.getElementById('animUrl').textContent =
+        location.origin + anim.file_url;
+      document.getElementById('result').style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    if (anim.status === 'failed') {
+      status.textContent = '❌ Generation failed: ' + (anim.error || 'unknown error');
+      btn.disabled = false;
+      return;
+    }
+    await new Promise(res => setTimeout(res, 500));
+  }
+  status.textContent = '⏱️ Still generating… try again shortly.';
+  btn.disabled = false;
+}
+</script>
+
+</body>
+</html>

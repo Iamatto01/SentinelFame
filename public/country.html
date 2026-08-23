@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COUNTRY RANKING — Best Artist</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { background: #0a0806; min-height: 100vh; }
+  .c-wrap { max-width: 900px; margin: 0 auto; padding: 40px 20px 90px; color: var(--paper); }
+
+  .c-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    border-bottom: 2px solid rgba(245,240,230,.25); padding-bottom: 14px; margin-bottom: 26px;
+  }
+  .c-head h1 {
+    font-family: 'Fraunces', serif; font-weight: 900;
+    font-size: clamp(1.8rem, 5vw, 3rem); letter-spacing: -.02em;
+  }
+  .c-head h1 em { font-style: italic; color: var(--vermilion); }
+  .c-back {
+    font-size: .72rem; font-weight: 800; letter-spacing: .18em;
+    color: var(--gold); text-decoration: none; border: 1px solid var(--gold);
+    padding: 7px 14px; white-space: nowrap;
+  }
+  .c-back:hover { background: var(--gold); color: #0a0806; }
+
+  /* Country chips */
+  .c-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 34px; }
+  .c-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 13px; cursor: pointer;
+    border: 1.5px solid rgba(245,240,230,.25); border-radius: 999px;
+    background: rgba(245,240,230,.05); color: var(--paper);
+    font-family: 'Space Grotesk'; font-size: .74rem; font-weight: 700;
+    transition: all .15s;
+  }
+  .c-chip:hover { border-color: var(--gold); transform: translateY(-2px); }
+  .c-chip.active { background: var(--vermilion); border-color: var(--vermilion); }
+  .c-chip .n { opacity: .6; font-size: .64rem; }
+
+  /* Ranking rows */
+  .c-rows { display: flex; flex-direction: column; gap: 10px; }
+  .c-row {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(245,240,230,.04);
+    border: 1.5px solid rgba(245,240,230,.15);
+    padding: 10px 16px 10px 10px; cursor: pointer; border-radius: 6px;
+    transition: border-color .15s, transform .15s;
+  }
+  .c-row:hover { border-color: var(--gold); transform: translateX(4px); }
+  .c-rank {
+    width: 44px; height: 44px; flex: none;
+    display: grid; place-items: center;
+    font-family: 'Fraunces', serif; font-weight: 900; font-size: 1.05rem;
+    border-radius: 50%; border: 2px solid rgba(245,240,230,.3);
+  }
+  .c-row.r1 .c-rank { background: #d93a26; border-color: #d93a26; }
+  .c-row.r2 .c-rank { background: #b98a1e; border-color: #b98a1e; }
+  .c-row.r3 .c-rank { background: #6a1b9a; border-color: #6a1b9a; }
+  .c-row img {
+    width: 52px; height: 52px; flex: none; object-fit: cover; border-radius: 6px;
+    filter: brightness(.85);
+  }
+  .c-info { flex: 1; min-width: 0; }
+  .c-name { font-weight: 800; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-meta { font-size: .68rem; opacity: .55; letter-spacing: .08em; margin-top: 2px; }
+  .c-votes { text-align: right; flex: none; }
+  .c-votes b { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--gold); }
+  .c-votes span { display: block; font-size: .58rem; letter-spacing: .18em; opacity: .55; }
+
+  .c-empty { text-align: center; padding: 60px 0; opacity: .5; font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<div class="c-wrap">
+  <div class="c-head">
+    <h1 id="countryTitle">COUNTRY <em>RANKING</em></h1>
+    <a class="c-back" href="/">← HALL OF FAME</a>
+  </div>
+
+  <div class="c-chips" id="countryChips"></div>
+  <div class="c-rows" id="countryRows"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const avatar = (s) => s.image_url || `https://ui-avatars.com/api/?background=16130e&color=f5f0e6&bold=true&size=120&name=${encodeURIComponent(s.name)}`;
+
+// Country name from URL: /country/USA → "USA", /country/South%20Korea → "South Korea"
+function countryFromUrl() {
+  const parts = location.pathname.split('/').filter(Boolean); // ['country','USA']
+  return parts.length >= 2 ? decodeURIComponent(parts.slice(1).join('/')) : '';
+}
+
+function renderChips(countries, active) {
+  $('#countryChips').innerHTML = countries.map(c => `
+    <button class="c-chip ${c.country.toLowerCase() === active.toLowerCase() ? 'active' : ''}"
+            onclick="location.href='/country/${encodeURIComponent(c.country)}'">
+      ${esc(c.country)} <span class="n">${c.artists}♪ · ${c.total_votes.toLocaleString()}♡</span>
+    </button>
+  `).join('');
+}
+
+function renderRows(singers) {
+  if (!singers.length) {
+    $('#countryRows').innerHTML = '<p class="c-empty">No artists registered for this country yet.</p>';
+    return;
+  }
+  $('#countryRows').innerHTML = singers.map((s, i) => `
+    <div class="c-row r${i + 1}" onclick="location.href='/?open=${s.id}'" title="Vote for ${esc(s.name)}">
+      <span class="c-rank">${i + 1}</span>
+      <img src="${esc(avatar(s))}" alt="" loading="lazy"
+           onerror="this.src='https://ui-avatars.com/api/?background=000&color=f0c040&bold=true&size=120&name=${encodeURIComponent(s.name)}'">
+      <div class="c-info">
+        <div class="c-name">${esc(s.name)}</div>
+        <div class="c-meta">${esc(s.genre || '')}</div>
+      </div>
+      <div class="c-votes"><b>${s.votes.toLocaleString()}</b><span>VOTES</span></div>
+    </div>
+  `).join('');
+}
+
+(async () => {
+  // Load all countries for the chip bar
+  let countries = [];
+  try { countries = await fetch('/api/countries').then(r => r.json()); } catch {}
+
+  let current = countryFromUrl();
+  // No country in URL → pick the top-voted one
+  if (!current && countries.length) {
+    current = countries[0].country;
+    history.replaceState(null, '', `/country/${encodeURIComponent(current)}`);
+  }
+
+  if (current) {
+    $('#countryTitle').innerHTML = `${esc(current.toUpperCase())} <em>RANKING</em>`;
+    document.title = `${current.toUpperCase()} RANKING — Best Artist`;
+    try {
+      const singers = await fetch(`/api/countries/${encodeURIComponent(current)}`).then(r => r.json());
+      renderChips(countries, current);
+      renderRows(singers);
+    } catch { renderRows([]); }
+  } else {
+    renderChips(countries, '');
+    renderRows([]);
+  }
+})();
+</script>
+</body>
+</html>

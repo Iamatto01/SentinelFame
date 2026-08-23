@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HALL OF FAME — Best Artist</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- Disco / concert light overlay — purely visual, non-interactive -->
+<div class="disco-overlay" aria-hidden="true">
+  <div class="beam beam-1"></div>
+  <div class="beam beam-2"></div>
+  <div class="beam beam-3"></div>
+  <div class="beam beam-4"></div>
+  <div class="beam beam-5"></div>
+  <div class="beam beam-6"></div>
+</div>
+
+<!-- Dark backdrop behind the sticky hero (visible as the hero irises away) -->
+<div class="hero-backdrop" aria-hidden="true"></div>
+
+<!-- ============ FULLSCREEN HERO ============ -->
+<section class="hero hero-active" id="hero">
+  <!-- Glitch montage background (Top 5 artist portraits, looping) -->
+   <!-- Left: main artist portrait (random-effect swapper) -->
+  <div class="hero-portrait" id="heroPortrait">
+    <img id="heroImg" src="" alt="">
+   </div>
+  <div class="hero-vignette"></div>
+
+  <!-- Masthead -->
+  <div class="masthead">
+    <div class="brand">HALL OF <em>FAME</em></div>
+    <nav class="top-nav">
+      <a class="nav-link" id="navGlobal" href="/">GLOBAL</a>
+      <div class="nav-drop" id="navCountryDrop">
+        <button class="nav-link nav-drop-btn" type="button">COUNTRY ▾</button>
+        <div class="nav-drop-panel" id="countryPanel">
+          <input type="text" id="countryFilter" placeholder="Filter countries…" autocomplete="off">
+          <div class="country-list" id="countryList"></div>
+        </div>
+      </div>
+      <a class="nav-link" href="/competitions">COMPETITIONS</a>
+    </nav>
+  </div>
+
+  <!-- Rolling news bar -->
+  <div class="ticker"><div class="ticker-track" id="tickerTrack"></div></div>
+
+  <!-- YouTube embed — top-right corner -->
+  <div class="hero-video-topright" id="heroVideo">
+    <div class="video-label">● NOW PLAYING · No.1 SONG</div>
+    <div id="videoFrame"></div>
+  </div>
+
+  <!-- Center: champion info + push panel -->
+  <div class="hero-center">
+    <div class="hero-champ">
+      <span class="champ-tag" id="champTag">👑 GLOBAL FAMOUS NUMBER ONE #1</span>
+      <h1 id="champName">—</h1>
+      <p id="champVotes" class="champ-votes">— VOTES</p>
+    </div>
+
+    <section class="push-panel">
+      <button type="button" class="search-open-btn" onclick="openSearch()">
+        🔍 SEARCH ARTIST <span class="search-kbd">CLICK TO VOTE</span>
+      </button>
+    </section>
+  </div>
+
+  <!-- Bottom-right: Top 5 carousel cards -->
+  <div class="hero-top5" id="heroTop5">
+    <div class="top5-label">🔥 TRENDING TOP 5</div>
+    <div class="top5-carousel" id="top5List">
+      <div class="top5-track" id="top5Track"></div>
+    </div>
+  </div>
+
+  <!-- Floating hint -->
+  <div class="scroll-hint" onclick="document.getElementById('roots').scrollIntoView({behavior:'smooth'})">
+    <span>CLICK & SCROLL TO VIEW THE FULL PODIUM & LEADERBOARD</span>
+    <span class="chev">▼</span>
+  </div>
+</section>
+
+<!-- ============ TREE-ROOT LEADERBOARD ============ -->
+<main id="roots">
+  <div class="roots-head">
+     <span class="tag">Leaderboard Stairs(?) · DEEPER = LOWER RANK</span>
+  </div>
+
+  <!-- Podium: top 3 as first branch fork -->
+  <section id="podium" class="podium"></section>
+
+  <!-- Root trunk: rows fade in on scroll -->
+  <div id="rootList" class="root-list"></div>
+  <div id="sentinel" class="root-sentinel"><span class="pulse">●</span> GROWING…</div>
+</main>
+
+<!-- SEARCH DIALOG — fullscreen blur with artist card grid -->
+<div id="searchModal" class="modal hidden">
+  <div class="search-box">
+    <button class="modal-close" onclick="closeSearch()">✕</button>
+    <div class="search-head">
+      <div class="input-wrap search-wrap">
+        <span class="input-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Type an artist name…" autocomplete="off">
+      </div>
+    </div>
+    <p id="searchCount" class="search-count"></p>
+    <div id="searchGrid" class="search-grid"></div>
+  </div>
+</div>
+
+<!-- VOTE MODAL — MASSIVE layout -->
+<div id="voteModal" class="modal hidden">
+  <div class="modal-box modal-massive">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-layout">
+      <!-- LEFT: Full artist image with bio overlay -->
+      <div class="modal-left">
+        <img id="mImg" src="" alt="">
+        <div class="bio-overlay">
+          <h4>📖 BIOGRAPHY</h4>
+          <p id="mBio">Loading biography...</p>
+        </div>
+      </div>
+      <!-- RIGHT: Info + voting -->
+      <div class="modal-right">
+        <div class="modal-header">
+           <div class="social-btns" id="mSocial">  <h2 id="mName"></h2>
+            <a href="#" target="_blank" class="social-btn" id="mWiki" title="Wikipedia">📚</a>
+            <a href="#" target="_blank" class="social-btn" id="mYT" title="YouTube">▶</a>
+            <a href="#" target="_blank" class="social-btn" id="mSpotify" title="Spotify">🎧</a>
+          </div>
+          <p id="mMeta" class="muted"></p>
+          <p id="mGenre" class="m-genre"></p>
+        
+        </div>
+        <div class="modal-vote-section">
+          <label class="vote-label">HOW MANY VOTES? ($1 EACH)</label>
+          <div class="vote-picker">
+            <button onclick="setVotes(1)" data-v="1" class="active">1</button>
+            <button onclick="setVotes(5)" data-v="5">5</button>
+            <button onclick="setVotes(10)" data-v="10">10</button>
+            <button onclick="setVotes(50)" data-v="50">50 ★</button>
+           </div>
+          <p class="total-line">TOTAL: $<span id="totalAmt" contenteditable="true" inputmode="decimal"
+             spellcheck="false" title="Type any amount">1.00</span></p>
+          <label class="vote-label">YOUR NAME (OPTIONAL)</label>
+          <input type="text" id="voterName" class="vote-input" placeholder="Anonymous">
+          <label class="vote-label">💌 MESSAGE TO <span id="msgArtistName">ARTIST</span> (OPTIONAL)</label>
+          <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
+                    placeholder="Say something nice to support them…"></textarea>
+          <label class="vote-label">PAYMENT METHOD</label>
+          <!-- <div class="pay-tabs">
+            <button class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">💳 CARD</button>
+            <button class="pay-tab" data-tab="crypto" onclick="switchPayTab('crypto')">₿ CRYPTO</button>
+          </div> -->
+          <div class="pay-panels">
+            <!-- STRIPE PANEL -->
+            <div id="payPanelStripe" class="pay-panel active">
+               <button class="pay-btn stripe" onclick="payStripe()">💳 PAY $<span id="stripeAmtBtn">1.00</span> VIA STRIPE</button>
+            </div>
+            <!-- CRYPTO PANEL -->
+            <div id="payPanelCrypto" class="pay-panel">
+              <p class="pay-equiv">Send <strong id="cryptoAmtDollar">$1.00</strong> USD worth of <strong id="cryptoCoin">USDT</strong></p>
+              <div class="crypto-wallet" id="cryptoWallet">
+                <code id="cryptoAddr"></code>
+                <button class="copy-btn" onclick="copyCrypto()">📋 COPY</button>
+              </div>
+              <p class="crypto-note">After sending, click below to confirm:</p>
+              <button class="pay-btn crypto-confirm" onclick="confirmCrypto()">✅ I'VE SENT THE PAYMENT</button>
+            </div>
+          </div>
+          <p id="payMsg" class="pay-msg"></p>
+        </div>
+      </div>
+    </div>
+    <!-- BOTTOM: Top Song + Fan donations (2 cols) -->
+    <div class="modal-bottom">
+      <div class="modal-col">
+        <h3>🎵 TOP SONG</h3>
+        <div id="mTopSong">
+          <p class="m-song-name">—</p>
+          <div id="mSongEmbed"></div>
+        </div>
+      </div>
+      <div class="modal-col">
+        <h3>💬 FAN DONATIONS <span class="sort-btns">
+          <button class="sort-btn active" data-sort="latest" onclick="sortDonations('latest')">LATEST</button>
+          <button class="sort-btn" data-sort="highest" onclick="sortDonations('highest')">HIGHEST</button>
+        </span></h3>
+        <div id="donationsList" class="donations-list"><p class="muted" style="font-size:.8rem">Loading…</p></div>
+      </div>
+      <div class="modal-col">
+        <h3>🏆 TOP DONORS</h3>
+        <div id="topDonorsList" class="donations-list"><p class="muted" style="font-size:.8rem">Loading…</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>HALL OF FAME © 2026 · EVERY $1 VOTE SUPPORTS THE CHART · <a href="/admin.html">ADMIN</a></footer>
+<script src="/js/montage.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
