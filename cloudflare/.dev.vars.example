@@ -1,0 +1,13 @@
+# Local development secrets (never commit real values!)
+# Copy this to .dev.vars and fill in your test keys
+
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+PAYPAL_CLIENT_ID=test_xxx
+PAYPAL_CLIENT_SECRET=test_xxx
+TOYYIBPAY_SECRET_KEY=
+ADMIN_PASSWORD=admin123
+CRYPTO_WALLET=
+CRYPTO_CURRENCY=USDT
+CURRENCY=usd

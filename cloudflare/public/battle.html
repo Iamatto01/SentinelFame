@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BATTLE — Best Artist</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    margin: 0; background: #0a0806; color: var(--paper);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    display: flex; flex-direction: column;
+  }
+
+  /* Top bar — brand only (event id + reload hidden) */
+  .b-bar {
+    flex: none; display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 12px 20px;
+    border-bottom: 2px solid rgba(245,240,230,.2);
+    background: rgba(0,0,0,.4);
+  }
+  .b-brand {
+    font-family: 'Fraunces', serif; font-weight: 900; font-size: 1.1rem;
+    text-decoration: none; color: var(--paper);
+  }
+  .b-brand em { font-style: italic; color: var(--vermilion); }
+  .b-event-tag {
+    font-size: .62rem; font-weight: 800; letter-spacing: .2em; color: var(--gold);
+    border: 1px solid var(--gold); padding: 5px 12px; border-radius: 3px;
+  }
+
+  /* Live news banner */
+  .news-banner {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    background: var(--vermilion); color: var(--paper);
+    border-bottom: 2px solid var(--ink);
+    padding: 7px 16px; font-size: .74rem; font-weight: 700; letter-spacing: .04em;
+    overflow: hidden; white-space: nowrap;
+  }
+  .news-banner .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #ffe9a8; flex: none;
+    animation: pulseDot 1.2s ease infinite;
+  }
+  @keyframes pulseDot { 50% { opacity: .25; } }
+  .news-track { display: inline-block; animation: newsTick 24s linear infinite; }
+  .news-item { display: inline-flex; align-items: center; gap: 6px; margin: 0 20px; }
+  .news-item b { color: #ffe9a8; }
+  @keyframes newsTick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* Arena */
+  .arena {
+    flex: 1; display: grid; grid-template-columns: 1fr auto 1fr;
+    min-height: 0;
+  }
+
+  /* Each side */
+  .side {
+    position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    padding: 20px; min-height: 0; overflow: hidden;
+    transition: background .3s;
+  }
+  .side.a { background: linear-gradient(160deg, rgba(217,58,38,.16), transparent 60%); }
+  .side.b { background: linear-gradient(200deg, rgba(185,138,30,.16), transparent 60%); }
+  .side.winner-a { background: linear-gradient(160deg, rgba(217,58,38,.45), rgba(217,58,38,.08)); }
+  .side.winner-b { background: linear-gradient(200deg, rgba(185,138,30,.45), rgba(185,138,30,.08)); }
+
+  .side img.portrait {
+    width: min(30vh, 260px); aspect-ratio: 3/4; object-fit: cover;
+    border-radius: 10px; border: 3px solid rgba(245,240,230,.25);
+    filter: brightness(.85) contrast(1.05);
+    box-shadow: 0 18px 60px rgba(0,0,0,.6);
+  }
+  .side .tag {
+    font-size: .6rem; font-weight: 800; letter-spacing: .3em; opacity: .55;
+  }
+  .side h2 {
+    font-family: 'Fraunces', serif; font-weight: 900;
+    font-size: clamp(1.4rem, 3.4vw, 2.4rem); letter-spacing: -.02em;
+    text-align: center; margin: 0; line-height: 1.05;
+  }
+  .side .meta {
+    font-size: .72rem; opacity: .75; letter-spacing: .1em;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid rgba(245,240,230,.25); padding: 4px 12px; border-radius: 999px;
+  }
+  .score {
+    font-family: 'Fraunces', serif; font-weight: 900;
+    font-size: clamp(2.2rem, 6vw, 4rem); line-height: 1;
+  }
+  .side.a .score { color: #ff6a54; }
+  .side.b .score { color: var(--gold); }
+  .score-label { font-size: .56rem; letter-spacing: .26em; opacity: .5; margin-top: -8px; }
+
+  /* Money picker + pay button */
+  .vote-controls { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: min(280px, 90%); }
+  .money-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .money-btn {
+    padding: 9px 0; cursor: pointer;
+    font-family: inherit; font-weight: 800; font-size: .82rem;
+    background: rgba(245,240,230,.07); color: var(--paper);
+    border: 2px solid rgba(245,240,230,.3); border-radius: 4px;
+    transition: all .13s;
+  }
+  .money-btn:hover { border-color: var(--paper); transform: translateY(-2px); }
+  .side.a .money-btn.active { background: var(--vermilion); border-color: var(--vermilion); color: #fff; }
+  .side.b .money-btn.active { background: var(--gold); border-color: var(--gold); color: #16130e; }
+  .votes-line {
+    text-align: center; font-size: .78rem; font-weight: 700; letter-spacing: .06em;
+    opacity: .85;
+  }
+  .votes-line b { font-family: 'Fraunces', serif; font-size: 1rem; }
+  .btn-vote {
+    padding: 12px 22px; cursor: pointer;
+    font-family: inherit; font-weight: 800; font-size: .8rem; letter-spacing: .12em;
+    border-radius: 4px; border: 2px solid transparent;
+    transition: transform .12s, filter .15s;
+  }
+  .btn-vote:hover { transform: translateY(-2px); filter: brightness(1.15); }
+  .btn-vote:active { transform: translateY(1px); }
+  .btn-vote:disabled { opacity: .5; cursor: wait; transform: none; }
+  .side.a .btn-vote { background: var(--vermilion); color: #fff; }
+  .side.b .btn-vote { background: var(--gold); color: #16130e; }
+
+  /* Giant glowing SVG crown */
+  .crown {
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 110px; height: 110px;
+    display: none; z-index: 5;
+    filter: drop-shadow(0 0 18px rgba(255,215,0,.95)) drop-shadow(0 0 46px rgba(255,180,0,.65));
+  }
+  .crown svg { width: 100%; height: 100%; }
+  .crown path {
+    fill: url(#crownGrad); stroke: #fff3c4; stroke-width: 3;
+  }
+  .crown circle { fill: #d93a26; stroke: #fff3c4; stroke-width: 2.5; }
+  .side.show-crown .crown {
+    display: block;
+    animation: crownPop .5s cubic-bezier(.34,1.56,.64,1) both, crownFloat 2.4s ease-in-out .5s infinite;
+  }
+  @keyframes crownPop { from { transform: translateX(-50%) scale(0) rotate(-30deg); } to { transform: translateX(-50%) scale(1) rotate(0); } }
+  @keyframes crownFloat {
+    0%, 100% { transform: translateX(-50%) translateY(0) rotate(-3deg); }
+    50% { transform: translateX(-50%) translateY(-8px) rotate(3deg); }
+  }
+
+  /* Centre divider */
+  .vs-divider {
+    flex: none; width: 90px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background:
+      linear-gradient(180deg, transparent, rgba(245,240,230,.12) 20%, rgba(245,240,230,.12) 80%, transparent);
+  }
+  .vs-badge {
+    width: 68px; height: 68px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--vermilion); color: var(--paper);
+    font-family: 'Fraunces', serif; font-weight: 900; font-style: italic; font-size: 1.35rem;
+    border: 3px solid var(--paper);
+    box-shadow: 0 0 40px rgba(217,58,38,.7);
+  }
+  .diff { font-size: .62rem; font-weight: 800; letter-spacing: .14em; opacity: .65; text-align: center; }
+
+  .b-msg {
+    flex: none; text-align: center; padding: 8px;
+    font-size: .78rem; font-weight: 700; color: #ffd98a; min-height: 32px;
+  }
+
+  @media (max-width: 720px) {
+    html, body { overflow: auto; }
+    .arena { grid-template-columns: 1fr; }
+    .vs-divider { width: 100%; flex-direction: row; padding: 8px 0; }
+    .vs-badge { width: 52px; height: 52px; font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Shared SVG gradient for crowns -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="crownGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe27a"/>
+      <stop offset="55%" stop-color="#ffc93c"/>
+      <stop offset="100%" stop-color="#e89b0c"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="b-bar">
+  <a class="b-brand" href="/">HALL OF <em>FAME</em></a>
+  <span class="b-event-tag" id="eventTag"></span>
+</div>
+
+<!-- Live battle news banner -->
+<div class="news-banner">
+  <span class="live-dot"></span>
+  <div class="news-track" id="newsTrack"><span class="news-item">Loading live battle feed…</span></div>
+</div>
+
+<div class="arena">
+  <!-- SIDE A -->
+  <div class="side a" id="sideA">
+    <div class="crown">
+      <svg viewBox="0 0 100 80">
+        <path d="M8 68 L4 24 L28 42 L50 10 L72 42 L96 24 L92 68 Z"/>
+        <circle cx="50" cy="52" r="6"/>
+      </svg>
+    </div>
+    <span class="tag">ARTIST A</span>
+    <img class="portrait" id="imgA" src="" alt="">
+    <h2 id="nameA">—</h2>
+    <p class="meta" id="metaA"></p>
+    <div class="score" id="scoreA">0</div>
+    <div class="score-label">BATTLE VOTES</div>
+    <div class="vote-controls">
+      <div class="money-row" data-side="a">
+        <button class="money-btn active" data-amt="5">$5</button>
+        <button class="money-btn" data-amt="10">$10</button>
+        <button class="money-btn" data-amt="20">$20</button>
+        <button class="money-btn" data-amt="50">$50</button>
+      </div>
+      <p class="votes-line">Votes: <b id="votesA">5</b> · $<span id="usdA">5.00</span></p>
+      <button class="btn-vote" id="voteBtnA" onclick="vote('a')">PAY USING STRIPE</button>
+    </div>
+  </div>
+
+  <!-- DIVIDER -->
+  <div class="vs-divider">
+    <div class="vs-badge">VS</div>
+    <div class="diff" id="diffLabel"></div>
+  </div>
+
+  <!-- SIDE B -->
+  <div class="side b" id="sideB">
+    <div class="crown">
+      <svg viewBox="0 0 100 80">
+        <path d="M8 68 L4 24 L28 42 L50 10 L72 42 L96 24 L92 68 Z"/>
+        <circle cx="50" cy="52" r="6"/>
+      </svg>
+    </div>
+    <span class="tag">ARTIST B</span>
+    <img class="portrait" id="imgB" src="" alt="">
+    <h2 id="nameB">—</h2>
+    <p class="meta" id="metaB"></p>
+    <div class="score" id="scoreB">0</div>
+    <div class="score-label">BATTLE VOTES</div>
+    <div class="vote-controls">
+      <div class="money-row" data-side="b">
+        <button class="money-btn active" data-amt="5">$5</button>
+        <button class="money-btn" data-amt="10">$10</button>
+        <button class="money-btn" data-amt="20">$20</button>
+        <button class="money-btn" data-amt="50">$50</button>
+      </div>
+      <p class="votes-line">Votes: <b id="votesB">5</b> · $<span id="usdB">5.00</span></p>
+      <button class="btn-vote" id="voteBtnB" onclick="vote('b')">PAY USING STRIPE</button>
+    </div>
+  </div>
+</div>
+
+<p class="b-msg" id="msg"></p>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const avatar = (s) => s.image_url
+  ? `/api/proxy-image?url=${encodeURIComponent(s.image_url)}`
+  : `https://ui-avatars.com/api/?background=16130e&color=f5f0e6&bold=true&size=400&name=${encodeURIComponent(s.name)}`;
+
+let state = { event: '', a: null, b: null };
+const amounts = { a: 5, b: 5 };
+
+function paramsFromUrl() {
+  const p = new URLSearchParams(location.search);
+  return { event: p.get('event') || '', a: p.get('a') || '', b: p.get('b') || '' };
+}
+
+// ---------- Money picker ----------
+document.querySelectorAll('.money-row').forEach(row => {
+  const side = row.dataset.side;
+  row.querySelectorAll('.money-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      row.querySelectorAll('.money-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      amounts[side] = +btn.dataset.amt;
+      const cap = side.toUpperCase();
+      $('#votes' + cap).textContent = amounts[side];
+      $('#usd' + cap).textContent = amounts[side].toFixed(2);
+    });
+  });
+});
+
+// ---------- Load battle ----------
+async function loadBattle() {
+  const url = paramsFromUrl();
+  const eventId = url.event;
+  const a = url.a, b = url.b;
+
+  if (!eventId || !a || !b) {
+    $('#msg').textContent = '⚠ Link format: /battle?event=EVENT_ID&a=ARTIST_ID&b=ARTIST_ID';
+    return;
+  }
+  state.event = eventId;
+  $('#eventTag').textContent = `EVENT: ${eventId.toUpperCase()}`;
+
+  try {
+    const d = await fetch(`/api/battle?event=${encodeURIComponent(eventId)}&a=${a}&b=${b}`).then(r => r.json());
+    if (d.error) { $('#msg').textContent = '❌ ' + d.error; return; }
+    state.a = d.a; state.b = d.b;
+    $('#imgA').src = avatar(d.a);
+    $('#imgB').src = avatar(d.b);
+    // Artist name + country prominently
+    $('#nameA').textContent = d.a.name;
+    $('#nameB').textContent = d.b.name;
+    $('#metaA').innerHTML = `🌍 ${esc(d.a.country || 'Unknown')} &nbsp;·&nbsp; ${esc(d.a.genre || '')}`;
+    $('#metaB').innerHTML = `🌍 ${esc(d.b.country || 'Unknown')} &nbsp;·&nbsp; ${esc(d.b.genre || '')}`;
+    updateScores(d.votesA, d.votesB);
+    $('#msg').textContent = '';
+  } catch (e) {
+    $('#msg').textContent = '❌ Failed to load battle';
+  }
+}
+
+function updateScores(votesA, votesB) {
+  $('#scoreA').textContent = votesA.toLocaleString();
+  $('#scoreB').textContent = votesB.toLocaleString();
+  const sa = $('#sideA'), sb = $('#sideB');
+  sa.classList.remove('winner-a'); sb.classList.remove('winner-b');
+  sa.classList.remove('show-crown'); sb.classList.remove('show-crown');
+  if (votesA > votesB) { sa.classList.add('winner-a', 'show-crown'); }
+  else if (votesB > votesA) { sb.classList.add('winner-b', 'show-crown'); }
+  const diff = Math.abs(votesA - votesB);
+  $('#diffLabel').textContent = diff === 0 ? 'TIED' : `LEAD BY ${diff.toLocaleString()}`;
+}
+
+// ---------- Paid vote via Stripe ----------
+async function vote(side) {
+  if (!state.event || !state.a) return;
+  const btn = side === 'a' ? $('#voteBtnA') : $('#voteBtnB');
+  const amount = amounts[side];
+  const targetId = side === 'a' ? state.a.id : state.b.id;
+  const targetName = side === 'a' ? state.a.name : state.b.name;
+
+  btn.disabled = true;
+  $('#msg').textContent = `💳 Opening Stripe checkout for $${amount.toFixed(2)} (${amount} votes) to ${targetName}…`;
+  try {
+    const r = await fetch('/api/battle/vote', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: state.event, a: state.a.id, b: state.b.id, side: targetId, count: amount })
+    }).then(r => r.json());
+    if (r.url) {
+      location.href = r.url; // → Stripe → returns back with ?paid=1
+    } else {
+      $('#msg').textContent = '❌ ' + (r.error || 'Payment failed');
+      btn.disabled = false;
+    }
+  } catch {
+    $('#msg').textContent = '❌ Payment failed';
+    btn.disabled = false;
+  }
+}
+
+// ---------- After returning from Stripe (?paid=1) ----------
+async function refreshAfterPayment() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('paid') !== '1') return;
+  history.replaceState(null, '', location.pathname + `?event=${encodeURIComponent(p.get('event'))}&a=${p.get('a')}&b=${p.get('b')}`);
+  $('#msg').textContent = '✅ Payment received! Updating battle score…';
+  for (let i = 0; i < 6; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    await loadBattle();
+    if (!$('#msg').textContent.includes('Updating')) break;
+  }
+  $('#msg').textContent = '✅ Payment received — battle updated!';
+  setTimeout(() => { $('#msg').textContent = ''; }, 3000);
+}
+
+// ---------- Live news banner (recent payments for A or B) ----------
+let lastNewsKey = '';
+async function loadNews() {
+  if (!state.a || !state.b) return;
+  try {
+    const rows = await fetch('/api/recent-votes').then(r => r.json());
+    const ids = [state.a.id, state.b.id];
+    const relevant = rows.filter(r => ids.includes(r.singer_id)).slice(0, 10);
+    const key = relevant.map(r => r.singer_id + r.created_at).join('|');
+    if (relevant.length && key !== lastNewsKey) {
+      lastNewsKey = key;
+      const items = relevant.map(r =>
+        `<span class="news-item"><b>${esc(r.voter_name || 'Anon')}</b> voted <b>$${(r.amount_cents / 100).toFixed(0)}</b> for <b>${esc(r.singer_name)}</b> ⚔</span>`
+      ).join('');
+      $('#newsTrack').innerHTML = items + items; // duplicate for seamless loop
+    } else if (!relevant.length && !lastNewsKey) {
+      lastNewsKey = 'empty';
+      const item = `<span class="news-item">⚔ ${esc(state.a.name)} VS ${esc(state.b.name)} — be the first to strike!</span>`;
+      $('#newsTrack').innerHTML = item + item;
+    }
+  } catch { /* keep old content */ }
+}
+setInterval(loadNews, 5000);
+
+loadBattle().then(() => { loadNews(); refreshAfterPayment(); });
+</script>
+</body>
+</html>

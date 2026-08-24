@@ -1,0 +1,51 @@
+name = "sentinel-fame"
+main = "src/worker.js"
+compatibility_date = "2024-09-23"
+account_id = "41c99f9257999e43123d7a3f25fe494b"
+
+# ─── Custom Domains ────────────────────────────────────────────────────────
+routes = [
+  { pattern = "hall-of-fame.sentinelai.studio", custom_domain = true },
+  { pattern = "halloffame.sentinelai.studio", custom_domain = true }
+]
+
+# ─── Static Assets (serves public/ at the root) ───────────────────────────
+[assets]
+directory = "./public"
+
+# ─── D1 Database (SQLite at edge) ─────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "sentinel-fame"
+database_id = "57c3b40b-f655-4376-b63c-810b8c011368"
+
+# ─── R2 Bucket (optional: uncomment after enabling R2 in Cloudflare Dashboard) ─
+# [[r2_buckets]]
+# binding = "BUCKET"
+# bucket_name = "sentinel-fame-uploads"
+
+# ─── Environment Variables (non-secret) ───────────────────────────────────
+[vars]
+CURRENCY = "usd"
+STRIPE_PUBLISHABLE_KEY = ""
+PAYPAL_CLIENT_ID = ""
+COUNTRY_DEFAULT = "Global"
+
+# ─── Secret vars (set via `wrangler secret put`) ─────────────────────────
+#   STRIPE_SECRET_KEY
+#   STRIPE_WEBHOOK_SECRET
+#   PAYPAL_CLIENT_SECRET
+#   TOYYIBPAY_SECRET_KEY
+#   ADMIN_PASSWORD
+#   CRYPTO_WALLET
+
+# ─── Local dev (wrangler dev) ──────────────────────────────────────────────
+[env.local]
+name = "sentinel-fame-local"
+[[env.local.d1_databases]]
+binding = "DB"
+database_name = "sentinel-fame"
+database_id = "57c3b40b-f655-4376-b63c-810b8c011368"
+# [[env.local.r2_buckets]]
+# binding = "BUCKET"
+# bucket_name = "sentinel-fame-uploads"

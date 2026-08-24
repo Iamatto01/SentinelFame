@@ -1,0 +1,26 @@
+{
+  "name": "best-artist-voting-cf",
+  "version": "1.0.0",
+  "description": "Best Artist/Hall Of Fame voting app on Cloudflare Workers + D1 + R2",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "db:create": "wrangler d1 create sentinel-fame",
+    "db:schema": "wrangler d1 execute sentinel-fame --remote --file=./schema.sql",
+    "db:seed": "wrangler d1 execute sentinel-fame --remote --file=./seed.sql",
+    "db:reset": "wrangler d1 execute sentinel-fame --remote --command='DELETE FROM singers; DELETE FROM payments; DELETE FROM battles; DELETE FROM animations;'",
+    "db:query": "wrangler d1 execute sentinel-fame --remote --command",
+    "r2:create": "wrangler r2 bucket create sentinel-fame-uploads",
+    "secret:stripe": "wrangler secret put STRIPE_SECRET_KEY",
+    "secret:stripe-wh": "wrangler secret put STRIPE_WEBHOOK_SECRET",
+    "secret:paypal-id": "wrangler secret put PAYPAL_CLIENT_SECRET",
+    "secret:toyyibpay": "wrangler secret put TOYYIBPAY_SECRET_KEY",
+    "secret:admin": "wrangler secret put ADMIN_PASSWORD",
+    "secret:crypto": "wrangler secret put CRYPTO_WALLET"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}

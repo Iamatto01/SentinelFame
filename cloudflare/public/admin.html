@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin — Best Artist</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .admin-wrap { max-width: 900px; margin: 30px auto; padding: 0 16px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  th, td { padding: 10px 12px; text-align: left; font-size: .85rem; border-bottom: 1px solid #f1eef8; }
+  th { background: var(--primary); color: #fff; }
+  .approve { background: var(--green); color:#fff; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; }
+  .reject { background: #ef4444; color:#fff; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; margin-left:6px; }
+  .status-pending { color: var(--orange); font-weight:700; }
+  .status-completed { color: var(--green); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+  <h1>🛠️ Admin Panel</h1>
+  <div id="login" style="margin:20px 0">
+    <input type="password" id="pw" placeholder="Admin password" style="max-width:280px">
+    <button class="btn-load" onclick="loadPayments()">Login</button>
+  </div>
+  <div id="content" class="hidden">
+    <h2 class="section-title">Payment Approvals</h2>
+    <div id="payments"></div>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+let KEY = '';
+
+async function loadPayments() {
+  KEY = $('#pw').value;
+  const res = await fetch('/admin/payments', { headers: { 'x-admin-key': KEY } });
+  if (!res.ok) return alert('Wrong password');
+  $('#login').classList.add('hidden');
+  $('#content').classList.remove('hidden');
+  render(await res.json());
+}
+
+function render(list) {
+  $('#payments').innerHTML = `<table><tr><th>ID</th><th>Singer</th><th>Voter</th><th>Method</th><th>Votes</th><th>Amount</th><th>Status</th><th>Receipt</th><th></th></tr>` +
+    list.map(p => `<tr>
+      <td>${p.id}</td><td>${p.singer_id}</td><td>${p.voter_name}</td><td>${p.method}</td>
+      <td>${p.vote_count}</td><td>$${(p.amount_cents/100).toFixed(2)}</td>
+      <td class="status-${p.status}">${p.status}</td>
+      <td>${p.receipt_image ? `<a href="${p.receipt_image}" target="_blank">view</a>` : '—'}</td>
+      <td>${p.status === 'pending' ? `
+        <button class="approve" onclick="act(${p.id},'approve')">✓</button>
+        <button class="reject" onclick="act(${p.id},'reject')">✕</button>` : ''}</td>
+    </tr>`).join('') + '</table>';
+}
+
+async function act(id, action) {
+  await fetch(`/admin/payments/${id}/${action}`, { method: 'POST', headers: { 'x-admin-key': KEY } });
+  loadPayments();
+}
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') loadPayments(); });
+</script>
+</body>
+</html>
