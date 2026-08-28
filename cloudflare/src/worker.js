@@ -128,61 +128,65 @@ async function serveR2Upload(env, path) {
 // ─── Main fetch handler ───────────────────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const { method } = request;
-    const pathname = url.pathname;
-
-    // ── R2 upload serving (/uploads/receipts/... or /uploads/anim-sources/...)
-    if (pathname.startsWith('/uploads/')) {
-      const key = pathname.replace('/uploads/', '');
-      return serveR2Upload(env, key);
-    }
-
-    // ── API routes
-    const match = matchRoute(method, pathname);
-    if (match) {
-      // Admin auth check
-      if (match.isAdmin && !checkAdminAuth(request, env)) {
-        return errorResponse('Unauthorized', 401);
-      }
-
-      try {
-        const query = Object.fromEntries(url.searchParams.entries());
-        return await match.handler(env, request, match.params || {}, query);
-      } catch (err) {
-        console.error('Route error:', err);
-        return errorResponse(err.message || 'Internal server error', 500);
-      }
-    }
-
-    // ── Static asset fallback
-    // If the route doesn't match an API endpoint, let the Assets binding handle it.
-    // The [assets] config in wrangler.toml serves files from ./public/ for us
-    // automatically.  But if the URL looks like a page route (no file extension),
-    // serve index.html so client-side routing works for /battle, /country/:code etc.
-    if (!pathname.includes('.') || pathname.endsWith('.html')) {
-      // These page routes serve specific HTML files:
-      if (pathname === '/battle') {
-        return env.ASSETS.fetch(new Request(`${url.origin}/battle.html`, request));
-      }
-      if (pathname === '/competitions') {
-        return env.ASSETS.fetch(new Request(`${url.origin}/competitions.html`, request));
-      }
-      if (pathname.startsWith('/country/')) {
-        return env.ASSETS.fetch(new Request(`${url.origin}/index.html`, request));
-      }
-      if (pathname === '/' || pathname === '/index.html') {
-        return env.ASSETS.fetch(new Request(`${url.origin}/index.html`, request));
-      }
-      // Try to serve the exact file from assets
-      return env.ASSETS.fetch(request);
-    }
-
-    // Try to serve static file from assets
     try {
-      return env.ASSETS.fetch(request);
-    } catch {
-      return new Response('Not found', { status: 404 });
+      const url = new URL(request.url);
+      const { method } = request;
+      const pathname = url.pathname;
+
+      // ── R2 upload serving (/uploads/receipts/... or /uploads/anim-sources/...)
+      if (pathname.startsWith('/uploads/')) {
+        const key = pathname.replace('/uploads/', '');
+        return await serveR2Upload(env, key);
+      }
+
+      // ── API routes
+      const match = matchRoute(method, pathname);
+      if (match) {
+        // Admin auth check
+        if (match.isAdmin && !checkAdminAuth(request, env)) {
+          return errorResponse('Unauthorized', 401);
+        }
+
+        try {
+          const query = Object.fromEntries(url.searchParams.entries());
+          return await match.handler(env, request, match.params || {}, query);
+        } catch (err) {
+          console.error('Route error:', err);
+          return errorResponse(err.message || 'Internal server error', 500);
+        }
+      }
+
+      // ── Static asset fallback
+      if (!env.ASSETS) {
+        return new Response('Assets binding not available', { status: 500 });
+      }
+
+      if (!pathname.includes('.') || pathname.endsWith('.html')) {
+        if (pathname === '/battle') {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/battle.html`, request));
+        }
+        if (pathname === '/competitions') {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/competitions.html`, request));
+        }
+        if (pathname === '/admin') {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/admin.html`, request));
+        }
+        if (pathname === '/animate') {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/animate.html`, request));
+        }
+        if (pathname.startsWith('/country/')) {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/country.html`, request));
+        }
+        if (pathname === '/' || pathname === '/index.html') {
+          return await env.ASSETS.fetch(new Request(`${url.origin}/index.html`, request));
+        }
+        return await env.ASSETS.fetch(request);
+      }
+
+      return await env.ASSETS.fetch(request);
+    } catch (err) {
+      console.error('Unhandled Worker error:', err);
+      return new Response(`Worker error: ${err.message || err}`, { status: 500 });
     }
   },
 };

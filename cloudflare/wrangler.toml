@@ -12,6 +12,7 @@ routes = [
 # ─── Static Assets (serves public/ at the root) ───────────────────────────
 [assets]
 directory = "./public"
+binding = "ASSETS"
 
 # ─── D1 Database (SQLite at edge) ─────────────────────────────────────────
 [[d1_databases]]
