@@ -120,11 +120,26 @@ async function verifyAndCompleteSession(sessionId) {
 }
 
 async function stripeWebhook(req, res) {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
-  try {
-    event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  } catch {
-    return res.status(400).send('Bad payload');
+
+  if (endpointSecret && secretKey) {
+    try {
+      const sig = req.headers['stripe-signature'];
+      const stripe = getStripe();
+      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+      console.error('⚠️ Stripe Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  } else {
+    // If webhook secret is not set yet in development, log warning and parse payload
+    try {
+      event = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body instanceof Buffer ? JSON.parse(req.body.toString('utf8')) : req.body);
+    } catch {
+      return res.status(400).send('Bad payload');
+    }
   }
 
   if (event && event.type === 'checkout.session.completed') {

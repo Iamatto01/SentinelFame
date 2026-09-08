@@ -10,29 +10,71 @@ const { createStripeSession, verifyAndCompleteSession, stripeWebhook } = require
 
 const app = express();
 app.enable('trust proxy');
+const rateLimit = require('express-rate-limit');
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak permintaan. Sila cuba sebentar lagi.' }
+});
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Had permintaan dicapai. Sila tunggu sebentar.' }
+});
+
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
+
+app.use('/api/', generalLimiter);
+app.use('/api/pay/', sensitiveLimiter);
+app.use('/api/animations', sensitiveLimiter);
+
 app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // uploads dir
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
 const upload = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
-    filename: (req, file, cb) => cb(null, `receipt-${Date.now()}-${Math.round(Math.random()*1e6)}${path.extname(file.originalname || '.jpg')}`)
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase();
+      const safeExt = ALLOWED_EXTS.includes(ext) ? ext : '.jpg';
+      cb(null, `receipt-${Date.now()}-${Math.round(Math.random()*1e6)}${safeExt}`);
+    }
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, /image\/(jpeg|png|jpg|webp|gif)/.test(file.mimetype))
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const isMimeOk = /image\/(jpeg|png|jpg|webp)/.test(file.mimetype);
+    const isExtOk = ALLOWED_EXTS.includes(ext);
+    if (isMimeOk && isExtOk) return cb(null, true);
+    cb(new Error('Format fail tidak dibenarkan. Hanya JPG, PNG, dan WebP dibenarkan.'));
+  }
 });
-app.use('/uploads', express.static(uploadDir));
+
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'");
+  next();
+}, express.static(uploadDir));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- Seed on first run ----------
@@ -354,6 +396,10 @@ app.post('/api/pay/crypto', (req, res) => {
   try {
     const v = validatePaymentBody(req.body);
     if (v.error) return res.status(400).json({ error: v.error });
+    const txHash = sanitizeName(req.body.txHash || req.body.reference || '').slice(0, 100);
+    if (!txHash) {
+      return res.status(400).json({ error: 'Sila sertakan Hash Transaksi Crypto / TXID untuk pengesahan.' });
+    }
     const id = db.createPayment({
       singer_id: v.singerId,
       voter_name: v.voterName || 'Anonymous',
@@ -362,12 +408,15 @@ app.post('/api/pay/crypto', (req, res) => {
       vote_count: v.votes,
       amount_cents: v.votes * 100,
       currency: process.env.CRYPTO_CURRENCY || 'USDT',
-      reference: `crypto-${Date.now()}`,
+      reference: txHash,
       status: 'pending'
     });
-    // Auto-complete crypto payments for demo; in production, verify on-chain
-    db.completePayment(id);
-    res.json({ ok: true, paymentId: id, message: 'Crypto payment confirmed! Votes added.' });
+    // SECURITY FIX: Do not auto-complete crypto; wait for admin or on-chain verification
+    res.json({
+      ok: true,
+      paymentId: id,
+      message: '✅ Transaksi Crypto berjaya direkodkan! Undian akan dikreditkan selepas pengesahan pentadbir/on-chain.'
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -377,9 +426,8 @@ app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), strip
 // Toyyibpay callback (GET with ref & status)
 app.get('/api/callback/toyyibpay', async (req, res) => {
   const { ref, status } = req.query;
-  const payment = db.getPaymentByReference(ref);
-  if (payment && status === '1') db.completePayment(payment.id);
-  res.redirect(`/thank-you.html?ref=${ref || ''}`);
+  // SECURITY FIX: Never complete payments blindly from URL parameters
+  res.redirect(`/thank-you.html?ref=${encodeURIComponent(ref || '')}`);
 });
 
 // Generic return URL for Stripe success
@@ -409,18 +457,58 @@ app.get('/api/youtube-search', async (req, res) => {
   } catch (e) { res.json({ videoId: null }); }
 });
 
-// ---------- API: Image proxy (avoids CORS tainting canvas for particle engine) ----------
+// ---------- API: Image proxy (with SSRF protection & safe domain whitelist) ----------
+const ALLOWED_IMAGE_DOMAINS = [
+  'upload.wikimedia.org',
+  'thumb.wikimedia.org',
+  'en.wikipedia.org',
+  'commons.wikimedia.org',
+  'cdn-images.dzcdn.net',
+  'e-cdns-images.dzcdn.net',
+  'is1-ssl.mzstatic.com',
+  'is2-ssl.mzstatic.com',
+  'is3-ssl.mzstatic.com',
+  'is4-ssl.mzstatic.com',
+  'is5-ssl.mzstatic.com',
+  'i.scdn.co',
+  'images.unsplash.com',
+  'i.imgur.com',
+  'ui-avatars.com'
+];
+
+function isSafeImageUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    const hostname = parsed.hostname.toLowerCase();
+    // Block internal, loopback, private ranges
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0' || hostname.endsWith('.local') || hostname.endsWith('.internal')) return false;
+    if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.)/.test(hostname)) return false;
+    return ALLOWED_IMAGE_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+  } catch {
+    return false;
+  }
+}
+
 app.get('/api/proxy-image', async (req, res) => {
   try {
     const url = String(req.query.url || '');
-    if (!/^https?:\/\//.test(url)) return res.status(400).end();
+    if (!isSafeImageUrl(url)) {
+      return res.status(403).json({ error: 'Domain imej disekat atas faktor keselamatan (SSRF protection)' });
+    }
     const r = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: AbortSignal.timeout(8000)
     });
     if (!r.ok) return res.status(r.status).end();
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({ error: 'Pautan bukan imej yang sah' });
+    }
     const buf = Buffer.from(await r.arrayBuffer());
-    res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.set('Content-Type', contentType);
     res.set('Cache-Control', 'public, max-age=86400');
+    res.set('X-Content-Type-Options', 'nosniff');
     res.send(buf);
   } catch (e) { res.status(502).end(); }
 });

@@ -533,14 +533,14 @@ $('#voteModal')?.addEventListener('click', e => { if (e.target.id === 'voteModal
 let totalEditing = false;
 
 function getVotes() {
-  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const minVotes = 1;
   const unit = state.pricePerVote || 1.0;
   if (state.currentVotes && !totalEditing) return Math.max(minVotes, state.currentVotes);
   const raw = parseFloat(($('#totalAmt')?.textContent || String(unit * minVotes)).replace(/[^0-9.]/g, ''));
   return isNaN(raw) || raw < (unit * minVotes) ? minVotes : Math.max(minVotes, Math.round(raw / unit));
 }
 function setVotes(n) {
-  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const minVotes = 1;
   const votes = Math.max(minVotes, +n);
   state.currentVotes = votes;
   const unit = state.pricePerVote || 1.0;
@@ -573,7 +573,7 @@ function clearCustomChip() {
 }
 
 function getTotalAmount() {
-  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const minVotes = 1;
   const unit = state.pricePerVote || 1.0;
   const minAmt = minVotes * unit;
   if (!totalEditing) {
@@ -658,7 +658,7 @@ function initEditableTotal() {
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
     if (e.key === 'Escape') {
-      const minVotes = state.currency === 'myr' ? 2 : 1;
+      const minVotes = 1;
       const unit = state.pricePerVote || 1.0;
       el.textContent = (Math.max(minVotes, getVotes()) * unit).toFixed(2);
       el.blur();
@@ -688,9 +688,14 @@ function resetQRState() {
 }
 
 async function payStripe(method = 'card') {
+  const votes = getVotes();
+  if (votes < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
+    showMsg('💡 Gerbang Stripe memerlukan minimum RM 2.00 (2 Undian). Untuk 1 Undian (RM 1.00), gunakan tab "E-WALLET (TNG / SHOPEE)"!');
+    switchPayTab('ewallet');
+    return;
+  }
   $('#payMsg').textContent = method === 'qr' ? '⚡ Menjana kod Stripe QR...' : '💳 Menyambung ke Stripe Checkout...';
   try {
-    const votes = getVotes();
     const r = await postJSON('/api/pay/stripe', {
       singerId: state.currentSinger.id,
       votes: votes,
