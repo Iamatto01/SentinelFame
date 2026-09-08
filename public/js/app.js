@@ -373,11 +373,11 @@ async function openVote(id, presetVotes) {
   // Load payment methods & currency
   try {
     state.methods = await fetch('/api/payment-methods').then(r => r.json());
-    state.currency = state.methods.currency || 'myr';
+    state.currency = (state.methods.currency || 'myr').toLowerCase();
     state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
+    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)} · MIN. 2 UNDIAN)`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
@@ -386,11 +386,14 @@ async function openVote(id, presetVotes) {
     state.currencySymbol = 'RM ';
   }
 
-  // Votes
-  state.currentVotes = presetVotes || 1;
+  // Votes (Default to 2 votes = RM 2.00 due to Stripe Malaysia RM 2.00 minimum rule)
+  const minVotes = state.currency === 'myr' ? 2 : 1;
+  state.currentVotes = presetVotes ? Math.max(minVotes, +presetVotes) : minVotes;
   const initialTotal = (state.currentVotes * state.pricePerVote).toFixed(2);
   const totalAmtEl = $('#totalAmt');
   if (totalAmtEl) totalAmtEl.textContent = initialTotal;
+  document.querySelectorAll('.vote-picker button').forEach(b => b.classList.toggle('active', +b.dataset.v === state.currentVotes));
+  clearCustomChip();
   updateTotal();
   $('#payMsg').textContent = '';
   $('#voterMessage').value = ''; // clear previous message
@@ -512,22 +515,25 @@ function closeModal() { $('#voteModal').classList.add('hidden'); }
 $('#voteModal')?.addEventListener('click', e => { if (e.target.id === 'voteModal') closeModal(); });
 
 // ---------- Editable TOTAL amount (currency style) ----------
-// The total is the source of truth: typing $12.50 = 12 votes ($1 each).
+// The total is the source of truth: typing $12.00 = 12 votes ($1 each).
 let totalEditing = false;
 
 function getVotes() {
-  if (state.currentVotes && !totalEditing) return state.currentVotes;
-  const unit = state.pricePerVote || 2.0;
-  const raw = parseFloat(($('#totalAmt')?.textContent || String(unit)).replace(/[^0-9.]/g, ''));
-  return isNaN(raw) || raw < unit ? 1 : Math.max(1, Math.round(raw / unit));
+  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const unit = state.pricePerVote || 1.0;
+  if (state.currentVotes && !totalEditing) return Math.max(minVotes, state.currentVotes);
+  const raw = parseFloat(($('#totalAmt')?.textContent || String(unit * minVotes)).replace(/[^0-9.]/g, ''));
+  return isNaN(raw) || raw < (unit * minVotes) ? minVotes : Math.max(minVotes, Math.round(raw / unit));
 }
 function setVotes(n) {
-  state.currentVotes = +n;
-  const unit = state.pricePerVote || 2.0;
+  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const votes = Math.max(minVotes, +n);
+  state.currentVotes = votes;
+  const unit = state.pricePerVote || 1.0;
   const el = $('#totalAmt');
-  if (el) el.textContent = (+n * unit).toFixed(2);
+  if (el) el.textContent = (votes * unit).toFixed(2);
   clearCustomChip();
-  document.querySelectorAll('.vote-picker button').forEach(b => b.classList.toggle('active', +b.dataset.v === +n));
+  document.querySelectorAll('.vote-picker button').forEach(b => b.classList.toggle('active', +b.dataset.v === votes));
   updateTotal();
 }
 
@@ -553,10 +559,12 @@ function clearCustomChip() {
 }
 
 function getTotalAmount() {
-  const unit = state.pricePerVote || 2.0;
+  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const unit = state.pricePerVote || 1.0;
+  const minAmt = minVotes * unit;
   if (!totalEditing) {
-    const raw = parseFloat(($('#totalAmt')?.textContent || String(unit)).replace(/[^0-9.]/g, ''));
-    if (!isNaN(raw) && raw > 0) return Math.round(raw * 100) / 100;
+    const raw = parseFloat(($('#totalAmt')?.textContent || String(minAmt)).replace(/[^0-9.]/g, ''));
+    if (!isNaN(raw) && raw >= minAmt) return Math.round(raw * 100) / 100;
   }
   return getVotes() * unit;
 }
@@ -598,14 +606,25 @@ function initEditableTotal() {
 
   el.addEventListener('blur', () => {
     totalEditing = false;
+    const minVotes = state.currency === 'myr' ? 2 : 1;
+    const unit = state.pricePerVote || 1.0;
+    const minAmt = minVotes * unit;
     // Normalize to currency format on exit
     let raw = parseFloat(el.textContent.replace(/[^0-9.]/g, ''));
-    if (isNaN(raw) || raw < 1) raw = 1;
+    if (isNaN(raw) || raw < minAmt) {
+      raw = minAmt;
+      const msgEl = $('#payMsg');
+      if (msgEl) {
+        msgEl.textContent = `ℹ️ Had minimum transaksi Stripe ialah ${state.currencySymbol || 'RM '}${minAmt.toFixed(2)} (${minVotes} Undian).`;
+        msgEl.style.color = '#38bdf8';
+      }
+    }
     raw = Math.round(raw * 100) / 100;
     el.textContent = raw.toFixed(2);
+    state.currentVotes = Math.max(minVotes, Math.round(raw / unit));
     // If the final amount matches a preset, re-select that button instead
     const presetBtn = [...document.querySelectorAll('.vote-picker button')]
-      .find(b => +b.dataset.v === Math.round(raw));
+      .find(b => +b.dataset.v === state.currentVotes);
     if (presetBtn) {
       clearCustomChip();
       document.querySelectorAll('.vote-picker button').forEach(b => b.classList.remove('active'));
@@ -620,7 +639,9 @@ function initEditableTotal() {
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
     if (e.key === 'Escape') {
-      el.textContent = getVotes().toFixed(2);
+      const minVotes = state.currency === 'myr' ? 2 : 1;
+      const unit = state.pricePerVote || 1.0;
+      el.textContent = (Math.max(minVotes, getVotes()) * unit).toFixed(2);
       el.blur();
     }
   });
