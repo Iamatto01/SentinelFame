@@ -370,13 +370,31 @@ async function openVote(id, presetVotes) {
   $('#mMeta').textContent = `${s.country || 'Unknown'} · ${s.votes.toLocaleString()} votes`;
   $('#mGenre').textContent = s.genre || '';
   $('#mGenre').style.display = s.genre ? 'inline-block' : 'none';
+  // Load payment methods & currency
+  try {
+    state.methods = await fetch('/api/payment-methods').then(r => r.json());
+    state.currency = state.methods.currency || 'myr';
+    state.pricePerVote = state.methods.price_per_vote || (state.currency === 'myr' ? 2.0 : 1.0);
+    state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
+    const rateEl = $('#voteRateLabel');
+    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (${state.currencySymbol}${state.pricePerVote.toFixed(2)} SETIAP UNDIAN)`;
+    const preEl = $('#currencyPrefix');
+    if (preEl) preEl.textContent = state.currencySymbol;
+  } catch {
+    state.currency = 'myr';
+    state.pricePerVote = 2.0;
+    state.currencySymbol = 'RM ';
+  }
+
   // Votes
-  $('#totalAmt').textContent = (presetVotes || 1).toFixed(2); // currency format
+  state.currentVotes = presetVotes || 1;
+  const initialTotal = (state.currentVotes * state.pricePerVote).toFixed(2);
+  const totalAmtEl = $('#totalAmt');
+  if (totalAmtEl) totalAmtEl.textContent = initialTotal;
   updateTotal();
   $('#payMsg').textContent = '';
   $('#voterMessage').value = ''; // clear previous message
   $('#msgArtistName').textContent = s.name.toUpperCase();
-  state.methods = await fetch('/api/payment-methods').then(r => r.json());
 
   // Preload crypto config
   try {
@@ -497,13 +515,16 @@ $('#voteModal')?.addEventListener('click', e => { if (e.target.id === 'voteModal
 let totalEditing = false;
 
 function getVotes() {
-  // Votes derive from the editable total ($1 = 1 vote)
-  const raw = parseFloat(($('#totalAmt')?.textContent || '1').replace(/[^0-9.]/g, ''));
-  return isNaN(raw) || raw < 1 ? 1 : Math.round(raw);
+  if (state.currentVotes && !totalEditing) return state.currentVotes;
+  const unit = state.pricePerVote || 2.0;
+  const raw = parseFloat(($('#totalAmt')?.textContent || String(unit)).replace(/[^0-9.]/g, ''));
+  return isNaN(raw) || raw < unit ? 1 : Math.max(1, Math.round(raw / unit));
 }
 function setVotes(n) {
+  state.currentVotes = +n;
+  const unit = state.pricePerVote || 2.0;
   const el = $('#totalAmt');
-  if (el) el.textContent = (+n).toFixed(2);
+  if (el) el.textContent = (+n * unit).toFixed(2);
   clearCustomChip();
   document.querySelectorAll('.vote-picker button').forEach(b => b.classList.toggle('active', +b.dataset.v === +n));
   updateTotal();
@@ -531,20 +552,24 @@ function clearCustomChip() {
 }
 
 function getTotalAmount() {
+  const unit = state.pricePerVote || 2.0;
   if (!totalEditing) {
-    const raw = parseFloat(($('#totalAmt')?.textContent || '1').replace(/[^0-9.]/g, ''));
+    const raw = parseFloat(($('#totalAmt')?.textContent || String(unit)).replace(/[^0-9.]/g, ''));
     if (!isNaN(raw) && raw > 0) return Math.round(raw * 100) / 100;
   }
-  return getVotes();
+  return getVotes() * unit;
 }
 
 function updateTotal() {
   const amount = getTotalAmount();
+  const sym = state.currencySymbol || 'RM ';
   // Null-safe: some amount displays may be removed from the layout
   const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
   set('#stripeAmtBtn', amount.toFixed(2));
+  set('#stripeQrAmtBtn', amount.toFixed(2));
   set('#toyyibAmtBtn', amount.toFixed(2));
   set('#cryptoAmtDollar', `$${amount.toFixed(2)}`);
+  document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
 }
 
 function initEditableTotal() {
@@ -605,13 +630,23 @@ async function postJSON(url, body) {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return res.json();
 }
-async function payStripe() {
-  $('#payMsg').textContent = 'Connecting to Stripe...';
-  const r = await postJSON('/api/pay/stripe', { singerId: state.currentSinger.id, votes: getVotes(), voterName: $('#voterName').value, voterMessage: $('#voterMessage').value });
-  if (r.url) {
-    location.href = r.url;
-  } else {
-    showMsg(r.error || 'Stripe is not configured yet.');
+async function payStripe(method = 'card') {
+  $('#payMsg').textContent = method === 'qr' ? '⚡ Menjana kod Stripe QR...' : '💳 Menyambung ke Stripe Checkout...';
+  try {
+    const r = await postJSON('/api/pay/stripe', {
+      singerId: state.currentSinger.id,
+      votes: getVotes(),
+      voterName: $('#voterName').value,
+      voterMessage: $('#voterMessage').value,
+      preferredMethod: method
+    });
+    if (r.url) {
+      location.href = r.url;
+    } else {
+      showMsg(r.error || 'Gerbang pembayaran Stripe belum dikonfigurasikan.');
+    }
+  } catch (err) {
+    showMsg('Ralat Stripe: ' + err.message);
   }
 }
 
@@ -653,7 +688,8 @@ async function payManual() {
 // ================= PAYMENT TABS =================
 function switchPayTab(tab) {
   document.querySelectorAll('.pay-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.pay-panel').forEach(p => p.classList.toggle('active', p.id === `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`));
+  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
+  document.querySelectorAll('.pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
 }
 

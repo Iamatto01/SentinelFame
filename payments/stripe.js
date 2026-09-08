@@ -1,69 +1,122 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 
-async function createStripeSession({ singerId, votes, voterName, req, battle }) {
+function getStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey || secretKey.startsWith('sk_test_xxxx')) {
+    throw new Error('Stripe Secret Key is not configured in .env');
+  }
+  return require('stripe')(secretKey);
+}
+
+async function createStripeSession({ singerId, votes, voterName, voterMessage, req, battle, preferredMethod }) {
+  const stripe = getStripe();
   const singer = db.getSingerById(singerId);
   if (!singer) throw new Error('Singer not found');
-  const amountCents = votes * 100; // $1 per vote
 
-  // Pre-create pending payment
+  const currency = (process.env.CURRENCY || 'myr').toLowerCase();
+  // Stripe MYR requires a minimum total amount of RM 2.00 (200 cents). USD minimum is 50 cents.
+  const unitAmount = parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || (currency === 'myr' ? 200 : 100);
+  const voteCount = Math.max(1, parseInt(votes, 10) || 1);
+  const amountCents = voteCount * unitAmount;
+
+  // Pre-create pending payment in local database
   const paymentId = db.createPayment({
     singer_id: singerId,
     voter_name: voterName || 'Anonymous',
-    method: 'stripe',
-    vote_count: votes,
+    voter_message: voterMessage || '',
+    method: preferredMethod === 'qr' ? 'stripe_qr' : 'stripe',
+    vote_count: voteCount,
     amount_cents: amountCents,
-    currency: (process.env.CURRENCY || 'usd'),
+    currency: currency.toUpperCase(),
     status: 'pending'
   });
 
-  // Optional battle context — credited to the battle tally on webhook completion
-  const meta = { paymentId: String(paymentId), singerId: String(singerId), votes: String(votes) };
+  const meta = {
+    paymentId: String(paymentId),
+    singerId: String(singerId),
+    votes: String(voteCount),
+    voterName: String(voterName || 'Anonymous'),
+    voterMessage: String(voterMessage || '')
+  };
+
   if (battle && battle.eventId) {
     meta.battleEvent = String(battle.eventId);
     meta.battleA = String(battle.aId);
     meta.battleB = String(battle.bId);
   }
 
+  // Determine external origin safely across Cloudflare Tunnel & reverse proxies
+  const proto = (req && req.headers && req.headers['x-forwarded-proto']) || (req && req.protocol) || 'https';
+  const host = (req && req.headers && req.headers['x-forwarded-host']) || (req && req.get && req.get('host')) || 'fame.sentinelai.studio';
+  const origin = `${proto}://${host}`;
+
+  // Enabled payment methods on Malaysian Stripe account: Card & GrabPay (QR Code)
+  let paymentMethodTypes = ['card'];
+  if (currency === 'myr') {
+    paymentMethodTypes = preferredMethod === 'qr' ? ['grabpay', 'card'] : ['card', 'grabpay'];
+  }
+
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
+    payment_method_types: paymentMethodTypes,
     line_items: [{
       price_data: {
-        currency: process.env.CURRENCY || 'usd',
+        currency: currency,
         product_data: {
-          name: `${votes} vote${votes > 1 ? 's' : ''} for ${singer.name}`,
+          name: `${voteCount} vote${voteCount > 1 ? 's' : ''} for ${singer.name}`,
           description: battle?.eventId
-            ? `Battle ${battle.eventId} — support ${singer.name}`
-            : `Best Artist Voting — support ${singer.name}`
+            ? `Battle ${battle.eventId} — Best Artist Voting for ${singer.name}`
+            : `Hall of Fame Voting — support ${singer.name}`,
+          images: singer.image_url && singer.image_url.startsWith('http') ? [singer.image_url] : []
         },
-        unit_amount: 100
+        unit_amount: unitAmount
       },
-      quantity: votes
+      quantity: voteCount
     }],
     mode: 'payment',
-    success_url: battle?.eventId
-      ? `${req.protocol}://${req.get('host')}/battle?event=${encodeURIComponent(battle.eventId)}&a=${battle.aId}&b=${battle.bId}&paid=1`
-      : `${req.protocol}://${req.get('host')}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${req.protocol}://${req.get('host')}/`,
+    success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/`,
     metadata: meta
   });
 
-  db.db.prepare(`UPDATE payments SET reference = ? WHERE id = ?`).run(session.id, paymentId);
+  try {
+    db.db.prepare(`UPDATE payments SET reference = ? WHERE id = ?`).run(session.id, paymentId);
+  } catch (e) {
+    console.error('Failed to attach reference to payment:', e.message);
+  }
+
   return session;
+}
+
+async function verifyAndCompleteSession(sessionId) {
+  if (!sessionId) return null;
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+  if (session && session.payment_status === 'paid') {
+    const paymentId = session.metadata?.paymentId;
+    if (paymentId) {
+      const completed = db.completePayment(parseInt(paymentId, 10));
+      return { session, payment: completed, singer: db.getSingerById(session.metadata?.singerId) };
+    }
+  }
+  return { session, payment: null, singer: null };
 }
 
 async function stripeWebhook(req, res) {
   let event;
   try {
-    event = JSON.parse(req.body);
-  } catch { return res.status(400).send('Bad payload'); }
+    event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  } catch {
+    return res.status(400).send('Bad payload');
+  }
 
-  if (event.type === 'checkout.session.completed') {
+  if (event && event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const paymentId = session.metadata?.paymentId;
-    if (paymentId) db.completePayment(parseInt(paymentId));
+    if (paymentId) {
+      db.completePayment(parseInt(paymentId, 10));
+    }
 
-    // Credit the battle tally if this payment was a battle vote
     const bEvent = session.metadata?.battleEvent;
     if (bEvent) {
       try {
@@ -74,10 +127,12 @@ async function stripeWebhook(req, res) {
           session.metadata.singerId,
           parseInt(session.metadata.votes, 10) || 1
         );
-      } catch (e) { console.error('Battle credit failed:', e.message); }
+      } catch (e) {
+        console.error('Battle credit failed:', e.message);
+      }
     }
   }
   res.json({ received: true });
 }
 
-module.exports = { createStripeSession, stripeWebhook };
+module.exports = { createStripeSession, verifyAndCompleteSession, stripeWebhook };

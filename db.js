@@ -2,8 +2,18 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dataDir = path.join(__dirname, '..', 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const candidateDirs = [
+  path.join(__dirname, '..', 'SentinelData'),
+  path.join(__dirname, '..', 'data'),
+  path.join(__dirname, 'data'),
+  __dirname
+];
+
+let dataDir = candidateDirs.find(d => fs.existsSync(path.join(d, 'votes.db')));
+if (!dataDir) {
+  dataDir = candidateDirs[0];
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+}
 
 const db = new Database(path.join(dataDir, 'votes.db'));
 db.pragma('journal_mode = WAL');

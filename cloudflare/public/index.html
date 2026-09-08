@@ -141,44 +141,50 @@
         
         </div>
         <div class="modal-vote-section">
-          <label class="vote-label">HOW MANY VOTES? ($1 EACH)</label>
+          <label class="vote-label" id="voteRateLabel">BILANGAN UNDIAN (RM 2.00 SETIAP UNDIAN)</label>
           <div class="vote-picker">
             <button onclick="setVotes(1)" data-v="1" class="active">1</button>
             <button onclick="setVotes(5)" data-v="5">5</button>
             <button onclick="setVotes(10)" data-v="10">10</button>
             <button onclick="setVotes(50)" data-v="50">50 ★</button>
            </div>
-          <p class="total-line">TOTAL: $<span id="totalAmt" contenteditable="true" inputmode="decimal"
-             spellcheck="false" title="Type any amount">1.00</span></p>
-          <label class="vote-label">YOUR NAME (OPTIONAL)</label>
-          <input type="text" id="voterName" class="vote-input" placeholder="Anonymous">
-          <label class="vote-label">💌 MESSAGE TO <span id="msgArtistName">ARTIST</span> (OPTIONAL)</label>
+          <p class="total-line">JUMLAH: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
+             spellcheck="false" title="Taip sebarang jumlah">2.00</span></p>
+          <label class="vote-label">NAMA ANDA (PILIHAN)</label>
+          <input type="text" id="voterName" class="vote-input" placeholder="Hamba Allah / Peminat Setia">
+          <label class="vote-label">💌 MESEJ SOKONGAN KEPADA <span id="msgArtistName">ARTIS</span> (PILIHAN)</label>
           <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
-                    placeholder="Say something nice to support them…"></textarea>
-          <label class="vote-label">PAYMENT METHOD</label>
+                    placeholder="Tulis ucapan atau sokongan anda kepada artis…"></textarea>
+          <label class="vote-label">KAEDAH PEMBAYARAN STRIPE</label>
           <div class="pay-tabs">
-            <button class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">💳 CARD</button>
+            <button class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">💳 STRIPE CARD</button>
+            <button class="pay-tab" data-tab="stripeqr" onclick="switchPayTab('stripeqr')">📱 STRIPE QR CODE</button>
             <button class="pay-tab" data-tab="toyyibpay" onclick="switchPayTab('toyyibpay')">🏦 FPX (MY)</button>
             <button class="pay-tab" data-tab="crypto" onclick="switchPayTab('crypto')">₿ CRYPTO</button>
           </div>
           <div class="pay-panels">
-            <!-- STRIPE PANEL -->
+            <!-- STRIPE CARD PANEL -->
             <div id="payPanelStripe" class="pay-panel active">
-               <button class="pay-btn stripe" onclick="payStripe()">💳 PAY $<span id="stripeAmtBtn">1.00</span> VIA STRIPE / CARD</button>
+               <button class="pay-btn stripe" onclick="payStripe('card')">💳 BAYAR <span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span> GUNA STRIPE CARD</button>
+            </div>
+            <!-- STRIPE QR PANEL -->
+            <div id="payPanelStripeqr" class="pay-panel">
+               <button class="pay-btn stripe" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 15px rgba(2,132,199,0.35);" onclick="payStripe('qr')">📱 IMBAS STRIPE QR (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">2.00</span>)</button>
+               <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Menyokong imbasan terus GrabPay QR / DuitNow e-Wallet di checkout Stripe</p>
             </div>
             <!-- TOYYIBPAY FPX PANEL -->
             <div id="payPanelToyyibpay" class="pay-panel">
-               <button class="pay-btn stripe" style="background:#0f8458" onclick="payToyyibpay()">🏦 PAY $<span id="toyyibAmtBtn">1.00</span> VIA FPX ONLINE BANKING</button>
+               <button class="pay-btn stripe" style="background:#0f8458" onclick="payToyyibpay()">🏦 BAYAR <span class="cur-sym">RM </span><span id="toyyibAmtBtn">2.00</span> VIA FPX ONLINE BANKING</button>
             </div>
             <!-- CRYPTO PANEL -->
             <div id="payPanelCrypto" class="pay-panel">
-              <p class="pay-equiv">Send <strong id="cryptoAmtDollar">$1.00</strong> USD worth of <strong id="cryptoCoin">USDT</strong></p>
+              <p class="pay-equiv">Hantar nilai bersamaan <strong id="cryptoAmtDollar">$2.00</strong> USD dalam <strong id="cryptoCoin">USDT</strong></p>
               <div class="crypto-wallet" id="cryptoWallet">
                 <code id="cryptoAddr"></code>
-                <button class="copy-btn" onclick="copyCrypto()">📋 COPY</button>
+                <button class="copy-btn" onclick="copyCrypto()">📋 SALIN</button>
               </div>
-              <p class="crypto-note">After sending, click below to confirm:</p>
-              <button class="pay-btn crypto-confirm" onclick="confirmCrypto()">✅ I'VE SENT THE PAYMENT</button>
+              <p class="crypto-note">Selepas hantar, tekan butang di bawah untuk pengesahan:</p>
+              <button class="pay-btn crypto-confirm" onclick="confirmCrypto()">✅ SAYA DAH HANTAR PEMBAYARAN</button>
             </div>
           </div>
           <p id="payMsg" class="pay-msg"></p>

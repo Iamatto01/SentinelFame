@@ -6,9 +6,17 @@ const multer = require('multer');
 const fs = require('fs');
 const db = require('./db');
 const { seedSingers } = require('./seed');
-const { createStripeSession, stripeWebhook } = require('./payments/stripe');
+const { createStripeSession, verifyAndCompleteSession, stripeWebhook } = require('./payments/stripe');
 
 const app = express();
+app.enable('trust proxy');
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -179,8 +187,14 @@ app.post('/api/singers/lookup', (req, res) => {
 
 // ---------- API: payment methods available ----------
 app.get('/api/payment-methods', (req, res) => {
+  const currency = (process.env.CURRENCY || 'myr').toLowerCase();
+  const unitPrice = (parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || (currency === 'myr' ? 200 : 100)) / 100;
   res.json({
     stripe: !!process.env.STRIPE_SECRET_KEY,
+    stripe_qr: !!process.env.STRIPE_SECRET_KEY,
+    currency: currency,
+    currency_symbol: currency === 'myr' ? 'RM' : '$',
+    price_per_vote: unitPrice,
     paypal: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
     toyyibpay: !!process.env.TOYYIBPAY_SECRET_KEY,
     manual: true
@@ -203,7 +217,14 @@ app.post('/api/pay/stripe', async (req, res) => {
   try {
     const v = validatePaymentBody(req.body);
     if (v.error) return res.status(400).json({ error: v.error });
-    const session = await createStripeSession({ singerId: v.singerId, votes: v.votes, voterName: v.voterName, voterMessage: v.voterMessage, req });
+    const session = await createStripeSession({
+      singerId: v.singerId,
+      votes: v.votes,
+      voterName: v.voterName,
+      voterMessage: v.voterMessage,
+      preferredMethod: req.body.preferredMethod,
+      req
+    });
     res.json({ url: session.url });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -301,16 +322,14 @@ app.get('/api/callback/toyyibpay', async (req, res) => {
 // Generic return URL for Stripe success
 app.get('/payment-success', async (req, res) => {
   const { session_id } = req.query;
-  // Webhook usually handles it; fallback verify:
-  try {
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    const session = await stripe.checkout.sessions.retrieve(session_id);
-    if (session.payment_status === 'paid') {
-      const payment = db.getPaymentByReference(session.id);
-      if (payment) db.completePayment(payment.id);
+  if (session_id) {
+    try {
+      await verifyAndCompleteSession(session_id);
+    } catch (e) {
+      console.error('Session verify error:', e.message);
     }
-  } catch (e) { /* ignore */ }
-  res.redirect(`/thank-you.html?ref=${session_id || ''}`);
+  }
+  res.redirect(`/thank-you.html?session_id=${encodeURIComponent(session_id || '')}`);
 });
 
 // ---------- API: YouTube top-track lookup ----------
