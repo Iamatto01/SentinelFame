@@ -14,10 +14,17 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   if (!singer) throw new Error('Singer not found');
 
   const currency = (process.env.CURRENCY || 'myr').toLowerCase();
-  // Stripe MYR requires a minimum total amount of RM 2.00 (200 cents). USD minimum is 50 cents.
-  const unitAmount = parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || (currency === 'myr' ? 200 : 100);
-  const voteCount = Math.max(1, parseInt(votes, 10) || 1);
-  const amountCents = voteCount * unitAmount;
+  // 1 vote = RM 1.00 (100 cents).
+  const unitAmount = parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100;
+  let voteCount = Math.max(1, parseInt(votes, 10) || 1);
+  let amountCents = voteCount * unitAmount;
+
+  // Stripe Malaysia strictly requires a minimum transaction amount of RM 2.00 (200 cents).
+  // If someone purchases 1 vote (RM 1.00), give 2 votes for RM 2.00 so each vote is strictly RM 1.00!
+  if (currency === 'myr' && amountCents < 200) {
+    voteCount = 2;
+    amountCents = 200;
+  }
 
   // Pre-create pending payment in local database
   const paymentId = db.createPayment({

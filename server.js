@@ -188,15 +188,15 @@ app.post('/api/singers/lookup', (req, res) => {
 // ---------- API: payment methods available ----------
 app.get('/api/payment-methods', (req, res) => {
   const currency = (process.env.CURRENCY || 'myr').toLowerCase();
-  const unitPrice = (parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || (currency === 'myr' ? 200 : 100)) / 100;
+  const unitPrice = (parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100;
   res.json({
     stripe: !!process.env.STRIPE_SECRET_KEY,
     stripe_qr: !!process.env.STRIPE_SECRET_KEY,
     currency: currency,
-    currency_symbol: currency === 'myr' ? 'RM' : '$',
+    currency_symbol: currency === 'myr' ? 'RM ' : '$',
     price_per_vote: unitPrice,
-    paypal: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
-    toyyibpay: !!process.env.TOYYIBPAY_SECRET_KEY,
+    paypal: false,
+    toyyibpay: false,
     manual: true
   });
 });
@@ -225,8 +225,23 @@ app.post('/api/pay/stripe', async (req, res) => {
       preferredMethod: req.body.preferredMethod,
       req
     });
-    res.json({ url: session.url });
+    res.json({ url: session.url, sessionId: session.id });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---------- API: check payment status (for live in-modal QR polling) ----------
+app.get('/api/pay/status', async (req, res) => {
+  const { session_id } = req.query;
+  if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+  try {
+    const result = await verifyAndCompleteSession(session_id);
+    if (result && result.session && result.session.payment_status === 'paid') {
+      return res.json({ paid: true, votes: result.payment?.vote_count, singer: result.singer?.name });
+    }
+    return res.json({ paid: false, status: result?.session?.payment_status || 'unpaid' });
+  } catch (e) {
+    res.json({ paid: false, error: e.message });
+  }
 });
 
 app.post('/api/pay/paypal/order', async (req, res) => {

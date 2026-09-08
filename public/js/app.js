@@ -374,15 +374,15 @@ async function openVote(id, presetVotes) {
   try {
     state.methods = await fetch('/api/payment-methods').then(r => r.json());
     state.currency = state.methods.currency || 'myr';
-    state.pricePerVote = state.methods.price_per_vote || (state.currency === 'myr' ? 2.0 : 1.0);
+    state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (${state.currencySymbol}${state.pricePerVote.toFixed(2)} SETIAP UNDIAN)`;
+    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
     state.currency = 'myr';
-    state.pricePerVote = 2.0;
+    state.pricePerVote = 1.0;
     state.currencySymbol = 'RM ';
   }
 
@@ -395,6 +395,7 @@ async function openVote(id, presetVotes) {
   $('#payMsg').textContent = '';
   $('#voterMessage').value = ''; // clear previous message
   $('#msgArtistName').textContent = s.name.toUpperCase();
+  resetQRState();
 
   // Preload crypto config
   try {
@@ -630,20 +631,78 @@ async function postJSON(url, body) {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return res.json();
 }
+let qrPollInterval = null;
+
+function resetQRState() {
+  if (qrPollInterval) {
+    clearInterval(qrPollInterval);
+    qrPollInterval = null;
+  }
+  const init = $('#qrInitialState');
+  const active = $('#qrActiveBox');
+  if (init) init.style.display = 'block';
+  if (active) active.style.display = 'none';
+  const img = $('#qrCodeImage');
+  if (img) img.src = '';
+  $('#payMsg').textContent = '';
+}
+
 async function payStripe(method = 'card') {
   $('#payMsg').textContent = method === 'qr' ? '⚡ Menjana kod Stripe QR...' : '💳 Menyambung ke Stripe Checkout...';
   try {
+    const votes = getVotes();
     const r = await postJSON('/api/pay/stripe', {
       singerId: state.currentSinger.id,
-      votes: getVotes(),
+      votes: votes,
       voterName: $('#voterName').value,
       voterMessage: $('#voterMessage').value,
       preferredMethod: method
     });
-    if (r.url) {
-      location.href = r.url;
-    } else {
+
+    if (!r.url) {
       showMsg(r.error || 'Gerbang pembayaran Stripe belum dikonfigurasikan.');
+      return;
+    }
+
+    if (method === 'qr') {
+      // Display QR Code right inside the modal on screen!
+      $('#payMsg').textContent = '';
+      const init = $('#qrInitialState');
+      const active = $('#qrActiveBox');
+      if (init) init.style.display = 'none';
+      if (active) active.style.display = 'block';
+
+      const qrImg = $('#qrCodeImage');
+      if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(r.url)}`;
+      }
+      const direct = $('#qrDirectLink');
+      if (direct) direct.href = r.url;
+
+      // Start polling payment status every 2 seconds
+      if (qrPollInterval) clearInterval(qrPollInterval);
+      if (r.sessionId) {
+        qrPollInterval = setInterval(async () => {
+          try {
+            const st = await fetch(`/api/pay/status?session_id=${r.sessionId}`).then(res => res.json());
+            if (st.paid) {
+              clearInterval(qrPollInterval);
+              qrPollInterval = null;
+              const pollEl = $('#qrPollingStatus');
+              if (pollEl) {
+                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PEMBAYARAN DITERIMA!</b> Undian telah berjaya direkodkan!`;
+              }
+              setTimeout(() => {
+                closeModal();
+                location.reload();
+              }, 2000);
+            }
+          } catch { /* continue polling */ }
+        }, 2000);
+      }
+    } else {
+      // Card payment redirects directly to Stripe
+      location.href = r.url;
     }
   } catch (err) {
     showMsg('Ralat Stripe: ' + err.message);

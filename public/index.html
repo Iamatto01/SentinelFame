@@ -141,7 +141,7 @@
         
         </div>
         <div class="modal-vote-section">
-          <label class="vote-label" id="voteRateLabel">BILANGAN UNDIAN (RM 2.00 SETIAP UNDIAN)</label>
+          <label class="vote-label" id="voteRateLabel">BILANGAN UNDIAN (1 UNDIAN = RM 1.00)</label>
           <div class="vote-picker">
             <button onclick="setVotes(1)" data-v="1" class="active">1</button>
             <button onclick="setVotes(5)" data-v="5">5</button>
@@ -149,7 +149,7 @@
             <button onclick="setVotes(50)" data-v="50">50 ★</button>
            </div>
           <p class="total-line">JUMLAH: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
-             spellcheck="false" title="Taip sebarang jumlah">2.00</span></p>
+             spellcheck="false" title="Taip sebarang jumlah">1.00</span></p>
           <label class="vote-label">NAMA ANDA (PILIHAN)</label>
           <input type="text" id="voterName" class="vote-input" placeholder="Hamba Allah / Peminat Setia">
           <label class="vote-label">💌 MESEJ SOKONGAN KEPADA <span id="msgArtistName">ARTIS</span> (PILIHAN)</label>
@@ -165,12 +165,36 @@
           <div class="pay-panels">
             <!-- STRIPE CARD PANEL -->
             <div id="payPanelStripe" class="pay-panel active">
-               <button class="pay-btn stripe" onclick="payStripe('card')">💳 BAYAR <span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span> GUNA STRIPE CARD</button>
+               <button class="pay-btn stripe" onclick="payStripe('card')">💳 BAYAR <span class="cur-sym">RM </span><span id="stripeAmtBtn">1.00</span> GUNA STRIPE CARD</button>
             </div>
             <!-- STRIPE QR PANEL -->
             <div id="payPanelStripeqr" class="pay-panel">
-               <button class="pay-btn stripe" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 15px rgba(2,132,199,0.35);" onclick="payStripe('qr')">📱 IMBAS STRIPE QR (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">2.00</span>)</button>
-               <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Menyokong imbasan terus GrabPay QR / DuitNow e-Wallet di checkout Stripe</p>
+               <div id="qrInitialState" style="text-align:center;padding:8px 0;">
+                 <button class="pay-btn stripe" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 15px rgba(2,132,199,0.35);" onclick="payStripe('qr')">
+                   ⚡ PAPARKAN KOD STRIPE QR (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">1.00</span>)
+                 </button>
+                 <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Imbas terus dengan telefon pintar guna GrabPay / DuitNow / Kad Bank</p>
+               </div>
+               
+               <div id="qrActiveBox" style="display:none;text-align:center;padding:8px 0;">
+                 <div style="background:#ffffff;padding:12px;border-radius:18px;display:inline-block;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+                   <img id="qrCodeImage" src="" alt="Kod QR Stripe" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:8px;" />
+                 </div>
+                 <p style="font-size:0.82rem;color:#38bdf8;font-weight:700;margin-top:10px;">
+                   📲 Halakan kamera telefon atau aplikasi e-Wallet anda ke kod QR di atas
+                 </p>
+                 <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+                   <a id="qrDirectLink" href="#" target="_blank" class="pay-btn stripe" style="font-size:0.75rem;padding:6px 14px;background:#334155;text-decoration:none;display:inline-block;width:auto;">
+                     🔗 Buka di Tab Baharu
+                   </a>
+                   <button onclick="resetQRState()" class="pay-btn" style="font-size:0.75rem;padding:6px 14px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;cursor:pointer;">
+                     ↺ Tukar Jumlah
+                   </button>
+                 </div>
+                 <div id="qrPollingStatus" style="margin-top:10px;font-size:0.78rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:6px;">
+                   <span class="pulse" style="color:#38bdf8;">●</span> Menunggu bayaran daripada telefon anda...
+                 </div>
+               </div>
             </div>
             <!-- TOYYIBPAY FPX PANEL -->
             <div id="payPanelToyyibpay" class="pay-panel">
