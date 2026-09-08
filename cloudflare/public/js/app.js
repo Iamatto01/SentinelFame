@@ -400,6 +400,19 @@ async function openVote(id, presetVotes) {
   $('#msgArtistName').textContent = s.name.toUpperCase();
   resetQRState();
 
+  // Preload e-wallet config
+  try {
+    state.ewalletConfig = await fetch('/api/ewallet-config').then(r => r.json());
+    if (state.ewalletConfig) {
+      const rec = $('#ewalletRecipient');
+      if (rec) rec.textContent = state.ewalletConfig.recipientName;
+      const num = $('#ewalletNumber');
+      if (num) num.textContent = state.ewalletConfig.tngNumber;
+      const qr = $('#ewalletQrImg');
+      if (qr && state.ewalletConfig.qrImage) qr.src = state.ewalletConfig.qrImage;
+    }
+  } catch { state.ewalletConfig = null; }
+
   // Preload crypto config
   try {
     state.cryptoConfig = await fetch('/api/crypto-config').then(r => r.json());
@@ -407,8 +420,9 @@ async function openVote(id, presetVotes) {
     $('#cryptoAddr').textContent = state.cryptoConfig.wallet || 'Not configured';
   } catch { state.cryptoConfig = null; }
 
-  // Reset to Stripe tab
-  switchPayTab('stripe');
+  // Default to e-wallet tab
+  switchPayTab('ewallet');
+  if (typeof switchEwalletSubtab === 'function') switchEwalletSubtab('tng');
 
   // Bottom: Bio, Top Song, Social, Donations
   loadBio(s);
@@ -571,11 +585,16 @@ function getTotalAmount() {
 
 function updateTotal() {
   const amount = getTotalAmount();
+  const votes = getVotes();
   const sym = state.currencySymbol || 'RM ';
   // Null-safe: some amount displays may be removed from the layout
   const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
   set('#stripeAmtBtn', amount.toFixed(2));
   set('#stripeQrAmtBtn', amount.toFixed(2));
+  set('#grabpayAmtBtn', amount.toFixed(2));
+  set('#ewalletAmtSync', amount.toFixed(2));
+  set('#ewalletBtnAmt', amount.toFixed(2));
+  set('#ewalletVotesSync', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
   set('#cryptoAmtDollar', `$${amount.toFixed(2)}`);
   document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
@@ -767,10 +786,126 @@ async function payManual() {
 
 // ================= PAYMENT TABS =================
 function switchPayTab(tab) {
-  document.querySelectorAll('.pay-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
-  document.querySelectorAll('.pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
+  document.querySelectorAll('.pay-tabs .pay-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : (tab === 'ewallet' ? 'payPanelEwallet' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+  document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
+  if (tab === 'ewallet') {
+    switchEwalletSubtab(activeEwalletType || 'tng');
+  }
+}
+
+// ================= E-WALLET (TNG, SHOPEEPAY, DUITNOW, GRABPAY) =================
+let activeEwalletType = 'tng';
+
+function switchEwalletSubtab(type) {
+  activeEwalletType = type;
+  document.querySelectorAll('.ewallet-subtabs .pay-tab').forEach(b => {
+    b.classList.toggle('active',
+      (type === 'tng' && b.id === 'subtabTng') ||
+      (type === 'shopeepay' && b.id === 'subtabShopee') ||
+      (type === 'duitnow' && b.id === 'subtabDuitnow') ||
+      (type === 'grabpay' && b.id === 'subtabGrab')
+    );
+  });
+
+  const grabView = $('#ewalletViewGrab');
+  const qrView = $('#ewalletViewQr');
+  const idLabel = $('#ewalletIdLabel');
+  const numEl = $('#ewalletNumber');
+  const cfg = state.ewalletConfig || {};
+
+  if (type === 'grabpay') {
+    if (grabView) grabView.style.display = 'block';
+    if (qrView) qrView.style.display = 'none';
+  } else {
+    if (grabView) grabView.style.display = 'none';
+    if (qrView) qrView.style.display = 'block';
+
+    if (type === 'shopeepay') {
+      if (idLabel) idLabel.textContent = 'ShopeePay / DuitNow:';
+      if (numEl) numEl.textContent = cfg.shopeePayName || cfg.tngNumber || '012-3456789';
+    } else if (type === 'duitnow') {
+      if (idLabel) idLabel.textContent = 'DuitNow ID:';
+      if (numEl) numEl.textContent = cfg.tngNumber || '012-3456789';
+    } else {
+      // tng
+      if (idLabel) idLabel.textContent = 'Touch \'n Go / DuitNow:';
+      if (numEl) numEl.textContent = cfg.tngNumber || '012-3456789';
+    }
+  }
+  updateTotal();
+}
+
+function copyEwalletNumber() {
+  const num = $('#ewalletNumber')?.textContent || '';
+  navigator.clipboard.writeText(num).then(() => {
+    showMsg('✅ Nombor e-Wallet / DuitNow telah disalin!');
+    const msgEl = $('#payMsg');
+    if (msgEl) msgEl.style.color = '#38bdf8';
+  }).catch(() => showMsg('Gagal menyalin nombor'));
+}
+
+async function submitEwalletPayment() {
+  const ref = ($('#ewalletRef')?.value || '').trim();
+  if (!ref) {
+    showMsg('⚠️ Sila masukkan No. Rujukan Transaksi (Transaction Ref / ID) selepas anda membuat bayaran.');
+    const msgEl = $('#payMsg');
+    if (msgEl) msgEl.style.color = '#ef4444';
+    $('#ewalletRef')?.focus();
+    return;
+  }
+
+  const btn = $('#btnSubmitEwallet');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Menghantar pengesahan bayaran...';
+  }
+  showMsg('⏳ Sedang memproses pengesahan bayaran anda...');
+  const msgEl = $('#payMsg');
+  if (msgEl) msgEl.style.color = '#94a3b8';
+
+  const fd = new FormData();
+  fd.append('singerId', state.currentSinger.id);
+  fd.append('votes', getVotes());
+  fd.append('voterName', $('#voterName')?.value || 'Anonymous');
+  fd.append('voterMessage', $('#voterMessage')?.value || '');
+  fd.append('reference', ref);
+  fd.append('ewalletType', activeEwalletType);
+
+  const fileInput = $('#ewalletReceipt');
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    fd.append('receipt', fileInput.files[0]);
+  }
+
+  try {
+    const res = await fetch('/api/pay/ewallet', { method: 'POST', body: fd });
+    const r = await res.json();
+    if (r.ok || r.paymentId) {
+      showMsg('🎉 ' + (r.message || 'Pengesahan bayaran e-Wallet berjaya dihantar! Undian akan dimasukkan selepas semakan admin.'));
+      if (msgEl) msgEl.style.color = '#10b981';
+      if ($('#ewalletRef')) $('#ewalletRef').value = '';
+      if (fileInput) fileInput.value = '';
+      setTimeout(() => {
+        closeModal();
+        location.reload();
+      }, 3000);
+    } else {
+      showMsg('⚠️ ' + (r.error || 'Gagal menghantar bayaran. Sila cuba lagi.'));
+      if (msgEl) msgEl.style.color = '#ef4444';
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+      }
+    }
+  } catch (err) {
+    showMsg('⚠️ Ralat: ' + err.message);
+    if (msgEl) msgEl.style.color = '#ef4444';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+    }
+  }
 }
 
 // ================= CRYPTO PAYMENT =================

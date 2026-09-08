@@ -192,6 +192,10 @@ app.get('/api/payment-methods', (req, res) => {
   res.json({
     stripe: !!process.env.STRIPE_SECRET_KEY,
     stripe_qr: !!process.env.STRIPE_SECRET_KEY,
+    ewallet: true,
+    grabpay: !!process.env.STRIPE_SECRET_KEY,
+    tng: true,
+    shopeepay: true,
     currency: currency,
     currency_symbol: currency === 'myr' ? 'RM ' : '$',
     price_per_vote: unitPrice,
@@ -291,6 +295,50 @@ app.post('/api/pay/manual', upload.single('receipt'), (req, res) => {
     });
     res.json({ ok: true, paymentId: id, message: 'Receipt submitted! Votes will be added after admin approval.' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---------- Malaysian e-Wallet payment (TNG, ShopeePay, DuitNow QR) ----------
+app.get('/api/ewallet-config', (req, res) => {
+  res.json({
+    recipientName: process.env.EWALLET_RECIPIENT_NAME || 'Sentinel Fame Official',
+    tngNumber: process.env.EWALLET_TNG_NUMBER || '012-3456789',
+    shopeePayName: process.env.EWALLET_SHOPEEPAY_NAME || 'Sentinel Fame Official',
+    qrImage: process.env.EWALLET_QR_IMAGE || '/images/duitnow-qr.svg',
+    currency: (process.env.CURRENCY || 'myr').toLowerCase(),
+    pricePerVote: (parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100
+  });
+});
+
+app.post('/api/pay/ewallet', upload.single('receipt'), (req, res) => {
+  try {
+    const v = validatePaymentBody(req.body);
+    if (v.error) return res.status(400).json({ error: v.error });
+    const reference = sanitizeName(req.body.reference || req.body.ref || '');
+    const ewalletType = sanitizeName(req.body.ewalletType || 'ewallet');
+    const currency = (process.env.CURRENCY || 'myr').toUpperCase();
+    const unitAmount = parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100;
+    const amountCents = v.votes * unitAmount;
+
+    const id = db.createPayment({
+      singer_id: v.singerId,
+      voter_name: v.voterName || 'Anonymous',
+      voter_message: v.voterMessage || '',
+      method: ewalletType, // 'tng', 'shopeepay', 'duitnow'
+      vote_count: v.votes,
+      amount_cents: amountCents,
+      currency: currency,
+      reference: reference || `ewallet-${Date.now()}`,
+      receipt_image: req.file ? `/uploads/${req.file.filename}` : null,
+      status: 'pending'
+    });
+    res.json({
+      ok: true,
+      paymentId: id,
+      message: '✅ Pengesahan bayaran e-Wallet berjaya dihantar! Undian akan dikreditkan selepas pengesahan pentadbir.'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ---------- Crypto payment ----------

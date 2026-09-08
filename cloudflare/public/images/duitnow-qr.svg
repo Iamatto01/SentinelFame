@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <defs>
+    <linearGradient id="dnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ED0058"/>
+      <stop offset="100%" stop-color="#BA0046"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect x="10" y="10" width="380" height="460" rx="24" fill="#ffffff" filter="url(#cardShadow)"/>
+  <path d="M 10 34 Q 10 10 34 10 L 366 10 Q 390 10 390 34 L 390 90 L 10 90 Z" fill="url(#dnGrad)"/>
+  <g transform="translate(30, 26)">
+    <circle cx="24" cy="24" r="22" fill="#ffffff"/>
+    <path d="M 16 16 L 32 16 L 32 26 C 32 30.5 28.5 34 24 34 C 19.5 34 16 30.5 16 26 Z" fill="#ED0058"/>
+    <circle cx="24" cy="24" r="4" fill="#ffffff"/>
+    <text x="56" y="22" font-family="'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="1">DuitNow</text>
+    <text x="56" y="38" font-family="'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#FFE3EC" letter-spacing="2">QR NASIONAL MALAYSIA</text>
+  </g>
+  <rect x="25" y="102" width="350" height="28" rx="8" fill="#FFF1F5"/>
+  <text x="200" y="121" font-family="'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#ED0058" text-anchor="middle">
+    Touch 'n Go · ShopeePay · GrabPay · MAE · Boost
+  </text>
+  <rect x="75" y="145" width="250" height="250" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+  <g transform="translate(95, 165)">
+    <rect x="0" y="0" width="56" height="56" rx="8" fill="#1E293B"/>
+    <rect x="8" y="8" width="40" height="40" rx="4" fill="#FFFFFF"/>
+    <rect x="16" y="16" width="24" height="24" rx="3" fill="#ED0058"/>
+    <rect x="154" y="0" width="56" height="56" rx="8" fill="#1E293B"/>
+    <rect x="162" y="8" width="40" height="40" rx="4" fill="#FFFFFF"/>
+    <rect x="170" y="16" width="24" height="24" rx="3" fill="#ED0058"/>
+    <rect x="0" y="154" width="56" height="56" rx="8" fill="#1E293B"/>
+    <rect x="8" y="162" width="40" height="40" rx="4" fill="#FFFFFF"/>
+    <rect x="16" y="170" width="24" height="24" rx="3" fill="#ED0058"/>
+    <rect x="68" y="8" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="96" y="8" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="124" y="8" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="68" y="32" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="100" y="32" width="16" height="16" rx="3" fill="#ED0058"/>
+    <rect x="124" y="32" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="8" y="68" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="32" y="68" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="60" y="68" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="90" y="68" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="116" y="68" width="24" height="16" rx="3" fill="#1E293B"/>
+    <rect x="150" y="68" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="180" y="68" width="20" height="16" rx="3" fill="#1E293B"/>
+    <circle cx="105" cy="105" r="28" fill="#ffffff" stroke="#ED0058" stroke-width="3"/>
+    <path d="M 97 97 L 113 97 L 113 107 C 113 111.5 109.5 115 105 115 C 100.5 115 97 111.5 97 107 Z" fill="#ED0058"/>
+    <circle cx="105" cy="105" r="3" fill="#ffffff"/>
+    <rect x="8" y="96" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="36" y="96" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="154" y="96" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="180" y="96" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="8" y="124" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="36" y="124" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="154" y="124" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="184" y="124" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="68" y="154" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="100" y="154" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="126" y="154" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="156" y="154" width="16" height="16" rx="3" fill="#1E293B"/>
+    <rect x="180" y="154" width="20" height="16" rx="3" fill="#1E293B"/>
+    <rect x="68" y="180" width="16" height="20" rx="3" fill="#1E293B"/>
+    <rect x="96" y="180" width="20" height="20" rx="3" fill="#ED0058"/>
+    <rect x="128" y="180" width="24" height="20" rx="3" fill="#1E293B"/>
+    <rect x="162" y="180" width="18" height="20" rx="3" fill="#1E293B"/>
+  </g>
+  <text x="200" y="418" font-family="'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0F172A" text-anchor="middle">
+    Imbas Guna Aplikasi e-Wallet Anda
+  </text>
+  <text x="200" y="438" font-family="'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="500" fill="#64748B" text-anchor="middle">
+    Touch 'n Go eWallet, ShopeePay, MAE, GrabPay &amp; Bank
+  </text>
+  <text x="200" y="456" font-family="'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600" fill="#ED0058" text-anchor="middle">
+    SENTINEL FAME OFFICIAL
+  </text>
+</svg>

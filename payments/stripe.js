@@ -26,12 +26,16 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   }
   const amountCents = voteCount * unitAmount;
 
+  let methodTag = 'stripe';
+  if (preferredMethod === 'qr') methodTag = 'stripe_qr';
+  else if (preferredMethod === 'grabpay') methodTag = 'grabpay';
+
   // Pre-create pending payment in local database
   const paymentId = db.createPayment({
     singer_id: singerId,
     voter_name: voterName || 'Anonymous',
     voter_message: voterMessage || '',
-    method: preferredMethod === 'qr' ? 'stripe_qr' : 'stripe',
+    method: methodTag,
     vote_count: voteCount,
     amount_cents: amountCents,
     currency: currency.toUpperCase(),
@@ -57,10 +61,16 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   const host = (req && req.headers && req.headers['x-forwarded-host']) || (req && req.get && req.get('host')) || 'fame.sentinelai.studio';
   const origin = `${proto}://${host}`;
 
-  // Enabled payment methods on Malaysian Stripe account: Card & GrabPay (QR Code)
+  // Enabled payment methods on Malaysian Stripe account: Card & GrabPay (QR Code / App)
   let paymentMethodTypes = ['card'];
   if (currency === 'myr') {
-    paymentMethodTypes = preferredMethod === 'qr' ? ['grabpay', 'card'] : ['card', 'grabpay'];
+    if (preferredMethod === 'grabpay') {
+      paymentMethodTypes = ['grabpay'];
+    } else if (preferredMethod === 'qr') {
+      paymentMethodTypes = ['grabpay', 'card'];
+    } else {
+      paymentMethodTypes = ['card', 'grabpay'];
+    }
   }
 
   const session = await stripe.checkout.sessions.create({
