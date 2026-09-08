@@ -377,7 +377,7 @@ async function openVote(id, presetVotes) {
     state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)} · MIN. 2 UNDIAN)`;
+    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
@@ -387,7 +387,7 @@ async function openVote(id, presetVotes) {
   }
 
   // Votes (Default to 2 votes = RM 2.00 due to Stripe Malaysia RM 2.00 minimum rule)
-  const minVotes = state.currency === 'myr' ? 2 : 1;
+  const minVotes = 1;
   state.currentVotes = presetVotes ? Math.max(minVotes, +presetVotes) : minVotes;
   const initialTotal = (state.currentVotes * state.pricePerVote).toFixed(2);
   const totalAmtEl = $('#totalAmt');
@@ -421,6 +421,13 @@ async function openVote(id, presetVotes) {
   } catch { state.cryptoConfig = null; }
 
   // Default to e-wallet tab
+  // Reset to Step 1 (single pay button)
+  const s1 = document.getElementById('payStep1');
+  const s2 = document.getElementById('payStep2');
+  const s3 = document.getElementById('payStep3');
+  if (s1) s1.style.display = 'block';
+  if (s2) s2.style.display = 'none';
+  if (s3) s3.style.display = 'none';
   switchPayTab('ewallet');
   if (typeof switchEwalletSubtab === 'function') switchEwalletSubtab('tng');
 
@@ -594,6 +601,8 @@ function updateTotal() {
   set('#grabpayAmtBtn', amount.toFixed(2));
   set('#ewalletAmtSync', amount.toFixed(2));
   set('#ewalletBtnAmt', amount.toFixed(2));
+  set('#megaPayAmt', amount.toFixed(2));
+  set('#megaVoteCount', String(votes));
   set('#ewalletVotesSync', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
   set('#cryptoAmtDollar', `$${amount.toFixed(2)}`);
@@ -798,6 +807,38 @@ function switchPayTab(tab) {
   if (tab === 'ewallet') {
     switchEwalletSubtab(activeEwalletType || 'tng');
   }
+}
+
+// ================= NEW PAYMENT FLOW (Step 1 → 2 → 3) =================
+function showPaymentMethods() {
+  const s1 = document.getElementById('payStep1');
+  const s2 = document.getElementById('payStep2');
+  if (s1) s1.style.display = 'none';
+  if (s2) s2.style.display = 'block';
+}
+function hidePaymentMethods() {
+  const s1 = document.getElementById('payStep1');
+  const s2 = document.getElementById('payStep2');
+  const s3 = document.getElementById('payStep3');
+  if (s1) s1.style.display = 'block';
+  if (s2) s2.style.display = 'none';
+  if (s3) s3.style.display = 'none';
+}
+function selectPayMethod(method) {
+  const s2 = document.getElementById('payStep2');
+  const s3 = document.getElementById('payStep3');
+  if (s2) s2.style.display = 'none';
+  if (s3) s3.style.display = 'block';
+  const nameMap = { ewallet: '📲 E-Wallet / QR', stripe: '💳 Kad Bank', stripeqr: '📱 Stripe QR' };
+  const nameEl = document.getElementById('selectedMethodName');
+  if (nameEl) nameEl.textContent = nameMap[method] || method;
+  switchPayTab(method);
+}
+function backToMethods() {
+  const s2 = document.getElementById('payStep2');
+  const s3 = document.getElementById('payStep3');
+  if (s2) s2.style.display = 'block';
+  if (s3) s3.style.display = 'none';
 }
 
 // ================= E-WALLET (TNG, SHOPEEPAY, DUITNOW, GRABPAY) =================

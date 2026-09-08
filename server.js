@@ -243,6 +243,7 @@ app.get('/api/payment-methods', (req, res) => {
     price_per_vote: unitPrice,
     paypal: false,
     toyyibpay: false,
+    crypto: false,
     manual: true
   });
 });
@@ -345,7 +346,7 @@ app.get('/api/ewallet-config', (req, res) => {
     recipientName: process.env.EWALLET_RECIPIENT_NAME || 'Sentinel Fame Official',
     tngNumber: process.env.EWALLET_TNG_NUMBER || '012-3456789',
     shopeePayName: process.env.EWALLET_SHOPEEPAY_NAME || 'Sentinel Fame Official',
-    qrImage: process.env.EWALLET_QR_IMAGE || '/images/duitnow-qr.svg',
+    qrImage: process.env.EWALLET_QR_IMAGE || '/images/duitnow-qr-real.jpg',
     currency: (process.env.CURRENCY || 'myr').toLowerCase(),
     pricePerVote: (parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100
   });
@@ -490,15 +491,31 @@ function isSafeImageUrl(rawUrl) {
   }
 }
 
+const crypto = require('crypto');
+const IMAGE_CACHE_DIR = path.join(__dirname, 'image-cache');
+if (!fs.existsSync(IMAGE_CACHE_DIR)) fs.mkdirSync(IMAGE_CACHE_DIR, { recursive: true });
+
 app.get('/api/proxy-image', async (req, res) => {
   try {
     const url = String(req.query.url || '');
     if (!isSafeImageUrl(url)) {
       return res.status(403).json({ error: 'Domain imej disekat atas faktor keselamatan (SSRF protection)' });
     }
+    // Check disk cache first
+    const hash = crypto.createHash('md5').update(url).digest('hex');
+    const cachePath = path.join(IMAGE_CACHE_DIR, hash);
+    const metaPath = cachePath + '.meta';
+    if (fs.existsSync(cachePath) && fs.existsSync(metaPath)) {
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      res.set('Content-Type', meta.contentType || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=604800');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.set('X-Cache', 'HIT');
+      return res.send(fs.readFileSync(cachePath));
+    }
     const r = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      signal: AbortSignal.timeout(8000)
+      headers: { 'User-Agent': 'SentinelFame/2.0 (https://fame.sentinelai.studio; admin@sentinelai.studio) Node.js' },
+      signal: AbortSignal.timeout(10000)
     });
     if (!r.ok) return res.status(r.status).end();
     const contentType = r.headers.get('content-type') || '';
@@ -506,9 +523,15 @@ app.get('/api/proxy-image', async (req, res) => {
       return res.status(400).json({ error: 'Pautan bukan imej yang sah' });
     }
     const buf = Buffer.from(await r.arrayBuffer());
+    // Save to cache
+    try {
+      fs.writeFileSync(cachePath, buf);
+      fs.writeFileSync(metaPath, JSON.stringify({ contentType, url, cachedAt: new Date().toISOString() }));
+    } catch {}
     res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Cache-Control', 'public, max-age=604800');
     res.set('X-Content-Type-Options', 'nosniff');
+    res.set('X-Cache', 'MISS');
     res.send(buf);
   } catch (e) { res.status(502).end(); }
 });
