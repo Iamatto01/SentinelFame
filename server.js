@@ -377,7 +377,7 @@ app.post('/api/pay/ewallet', upload.single('receipt'), (req, res) => {
     res.json({
       ok: true,
       paymentId: id,
-      message: '✅ Pengesahan bayaran e-Wallet berjaya dihantar! Undian akan dikreditkan selepas pengesahan pentadbir.'
+      message: '✅ E-Wallet payment submitted successfully! Votes will be credited upon admin confirmation.'
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -499,7 +499,7 @@ app.get('/api/proxy-image', async (req, res) => {
   try {
     const url = String(req.query.url || '');
     if (!isSafeImageUrl(url)) {
-      return res.status(403).json({ error: 'Domain imej disekat atas faktor keselamatan (SSRF protection)' });
+      return res.status(403).json({ error: 'Image domain blocked for security (SSRF protection)' });
     }
     // Check disk cache first
     const hash = crypto.createHash('md5').update(url).digest('hex');
@@ -520,7 +520,7 @@ app.get('/api/proxy-image', async (req, res) => {
     if (!r.ok) return res.status(r.status).end();
     const contentType = r.headers.get('content-type') || '';
     if (!contentType.startsWith('image/')) {
-      return res.status(400).json({ error: 'Pautan bukan imej yang sah' });
+      return res.status(400).json({ error: 'Link is not a valid image' });
     }
     const buf = Buffer.from(await r.arrayBuffer());
     // Save to cache

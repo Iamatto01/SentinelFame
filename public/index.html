@@ -141,60 +141,60 @@
         
         </div>
         <div class="modal-vote-section">
-          <label class="vote-label" id="voteRateLabel">PILIH PAKEJ UNDIAN (1 UNDI = RM 1.00)</label>
+          <label class="vote-label" id="voteRateLabel">CHOOSE VOTE PACKAGE (1 VOTE = RM 1.00)</label>
           <div class="vote-picker">
-            <button onclick="setVotes(1)" data-v="1" class="active">1 Undi</button>
-            <button onclick="setVotes(5)" data-v="5">5 Undi 🔥</button>
-            <button onclick="setVotes(10)" data-v="10">10 Undi ⚡</button>
-            <button onclick="setVotes(50)" data-v="50">50 Undi 👑</button>
+            <button onclick="setVotes(1)" data-v="1" class="active">1 Vote</button>
+            <button onclick="setVotes(5)" data-v="5">5 Votes 🔥</button>
+            <button onclick="setVotes(10)" data-v="10">10 Votes ⚡</button>
+            <button onclick="setVotes(50)" data-v="50">50 Votes 👑</button>
           </div>
           <div class="vote-perks" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;padding:8px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;font-size:0.75rem;color:#fde68a;">
             <span style="font-size:1.1rem;">🌟</span>
-            <span>Nama & ucapan sokongan anda akan terus disiarkan secara langsung di <b>Live Feed Donatur</b>!</span>
+            <span>Your name & shoutout message will be broadcast live on the <b>Official Donor Feed</b>!</span>
           </div>
-          <p class="total-line">JUMLAH BAYARAN: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
-             spellcheck="false" title="Taip sebarang jumlah">1.00</span></p>
-          <label class="vote-label">NAMA ANDA / NICKNAME (PILIHAN)</label>
-          <input type="text" id="voterName" class="vote-input" placeholder="Contoh: Peminat No. 1 / Hamba Allah">
-          <label class="vote-label">💌 MESEJ SOKONGAN KEPADA <span id="msgArtistName">ARTIS</span> (PILIHAN)</label>
+          <p class="total-line">TOTAL AMOUNT: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
+             spellcheck="false" title="Type any amount">1.00</span></p>
+          <label class="vote-label">YOUR NAME / NICKNAME (OPTIONAL)</label>
+          <input type="text" id="voterName" class="vote-input" placeholder="e.g., #1 Fan / Secret Admirer">
+          <label class="vote-label">💌 SHOUTOUT MESSAGE TO <span id="msgArtistName">ARTIST</span> (OPTIONAL)</label>
           <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
-                    placeholder="Tulis ucapan atau sokongan anda kepada artis…"></textarea>
+                    placeholder="Write an encouraging message or cheering shoutout…"></textarea>
           
           <!-- Step 1: Single compelling PAY button -->
           <div id="payStep1" class="pay-step1">
             <button type="button" id="btnPayNow" class="pay-btn-mega" onclick="showPaymentMethods()">
               <span class="pay-mega-icon">⚡</span>
               <span class="pay-mega-text">
-                <span class="pay-mega-label">TERUSKAN PEMBAYARAN</span>
-                <span class="pay-mega-amount"><span class="cur-sym">RM </span><span id="megaPayAmt">1.00</span> (<span id="megaVoteCount">1</span> Undian)</span>
+                <span class="pay-mega-label">PROCEED TO PAYMENT</span>
+                <span class="pay-mega-amount"><span class="cur-sym">RM </span><span id="megaPayAmt">1.00</span> (<span id="megaVoteCount">1</span> Vote)</span>
               </span>
               <span class="pay-mega-arrow">→</span>
             </button>
-            <p class="pay-trust">🔒 100% Rasmi & Telus · Sokongan Touch 'n Go, ShopeePay, DuitNow QR & Kad Bank</p>
+            <p class="pay-trust">🔒 100% Official & Secure · Supports Touch 'n Go, ShopeePay, DuitNow QR & Bank Cards</p>
           </div>
 
           <!-- Step 2: Payment method selection (hidden initially) -->
           <div id="payStep2" class="pay-step2" style="display:none;">
             <div class="pay-method-header">
-              <button type="button" class="pay-back-btn" onclick="hidePaymentMethods()">← Kembali</button>
-              <span class="pay-method-title">Pilih Cara Bayar</span>
+              <button type="button" class="pay-back-btn" onclick="hidePaymentMethods()">← Back</button>
+              <span class="pay-method-title">Select Payment Method</span>
             </div>
             <div class="pay-methods-grid">
               <button type="button" class="pay-method-card" onclick="selectPayMethod('ewallet')">
                 <span class="pmc-icon">📲</span>
-                <span class="pmc-name">E-Wallet / QR</span>
-                <span class="pmc-desc">TNG · ShopeePay · DuitNow · GrabPay</span>
+                <span class="pmc-name">E-Wallet / DuitNow QR</span>
+                <span class="pmc-desc">Touch 'n Go · ShopeePay · DuitNow · GrabPay</span>
                 <span class="pmc-badge popular">🔥 Popular</span>
               </button>
               <button type="button" class="pay-method-card" onclick="selectPayMethod('stripe')">
                 <span class="pmc-icon">💳</span>
-                <span class="pmc-name">Kad Debit / Kredit</span>
+                <span class="pmc-name">Credit / Debit Card</span>
                 <span class="pmc-desc">Visa · Mastercard · Stripe Secure</span>
               </button>
               <button type="button" class="pay-method-card" onclick="selectPayMethod('stripeqr')">
                 <span class="pmc-icon">📱</span>
                 <span class="pmc-name">Stripe QR</span>
-                <span class="pmc-desc">Imbas & bayar — auto confirm</span>
+                <span class="pmc-desc">Scan & Pay — Instant Auto Confirmation</span>
               </button>
             </div>
           </div>
@@ -202,7 +202,7 @@
           <!-- Step 3: Payment execution panels (hidden initially) -->
           <div id="payStep3" class="pay-step3" style="display:none;">
             <div class="pay-method-header">
-              <button type="button" class="pay-back-btn" onclick="backToMethods()">← Tukar Kaedah</button>
+              <button type="button" class="pay-back-btn" onclick="backToMethods()">← Change Method</button>
               <span id="selectedMethodName" class="pay-method-title">E-Wallet</span>
             </div>
             <div class="pay-panels">
@@ -225,50 +225,50 @@
 
                 <!-- VIEW 1: GRABPAY STRIPE DIRECT -->
                 <div id="ewalletViewGrab" style="display:none;text-align:center;padding:12px 0;">
-                  <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Bayar serta-merta menggunakan akaun <b>GrabPay e-Wallet</b> melalui gerbang Stripe:</p>
+                  <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Pay instantly with your <b>GrabPay e-Wallet</b> account via Stripe:</p>
                   <button class="pay-btn stripe" style="background:#00b140;border-color:#00b140;box-shadow:0 4px 15px rgba(0,177,64,0.35);padding:14px;" onclick="payStripe('grabpay')">
-                    🟢 BAYAR <span class="cur-sym">RM </span><span id="grabpayAmtBtn">1.00</span> GUNA GRABPAY
+                    🟢 PAY <span class="cur-sym">RM </span><span id="grabpayAmtBtn">1.00</span> WITH GRABPAY
                   </button>
-                  <p style="font-size:0.75rem;color:#64748b;margin-top:10px;">⚡ Undian disahkan dan dikreditkan secara automatik ke dalam carta!</p>
+                  <p style="font-size:0.75rem;color:#64748b;margin-top:10px;">⚡ Votes confirmed and credited automatically to the leaderboard!</p>
                 </div>
 
                 <!-- VIEW 2: TNG & SHOPEEPAY & DUITNOW QR -->
                 <div id="ewalletViewQr" style="text-align:center;">
                   <div style="background:#ffffff;padding:8px;border-radius:16px;display:inline-block;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-bottom:8px;">
-                    <img id="ewalletQrImg" src="/images/duitnow-qr-real.jpg" alt="Kod QR DuitNow" style="width:190px;height:auto;display:block;margin:0 auto;border-radius:8px;" />
+                    <img id="ewalletQrImg" src="/images/duitnow-qr-real.jpg" alt="DuitNow QR Code" style="width:190px;height:auto;display:block;margin:0 auto;border-radius:8px;" />
                   </div>
                   <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;margin-bottom:10px;text-align:left;font-size:0.76rem;">
                     <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                      <span style="color:#94a3b8;">Akaun Penerima:</span>
-                      <strong id="ewalletRecipient" style="color:#f8fafc;">Sentinel Fame Official</strong>
+                      <span style="color:#94a3b8;">Recipient:</span>
+                      <strong id="ewalletRecipient" style="color:#f8fafc;">MUHAMMAD SAIFUDIN BIN MO</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
                       <span style="color:#94a3b8;"><span id="ewalletIdLabel">Touch 'n Go / DuitNow:</span></span>
                       <div style="display:flex;gap:6px;align-items:center;">
                         <code id="ewalletNumber" style="background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:4px;color:#38bdf8;font-weight:700;">012-3456789</code>
-                        <button type="button" class="copy-btn" style="padding:2px 8px;font-size:0.68rem;" onclick="copyEwalletNumber()">📋 Salin</button>
+                        <button type="button" class="copy-btn" style="padding:2px 8px;font-size:0.68rem;" onclick="copyEwalletNumber()">📋 Copy</button>
                       </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;">
-                      <span style="color:#94a3b8;">Jumlah Pindahan:</span>
-                      <strong style="color:#4ade80;"><span class="cur-sym">RM </span><span id="ewalletAmtSync">1.00</span> (<span id="ewalletVotesSync">1</span> Undian)</strong>
+                      <span style="color:#94a3b8;">Transfer Amount:</span>
+                      <strong style="color:#4ade80;"><span class="cur-sym">RM </span><span id="ewalletAmtSync">1.00</span> (<span id="ewalletVotesSync">1</span> Vote)</strong>
                     </div>
                   </div>
 
                   <!-- SUBMIT CONFIRMATION FORM -->
                   <div style="text-align:left;background:rgba(255,255,255,0.02);border-radius:10px;padding:10px;border:1px dashed rgba(255,255,255,0.15);">
                     <label style="font-size:0.72rem;color:#cbd5e1;font-weight:700;display:block;margin-bottom:4px;">
-                      NO. RUJUKAN TRANSAKSI / REF NO (WAJIB)
+                      TRANSACTION / REFERENCE NO. (REQUIRED)
                     </label>
-                    <input type="text" id="ewalletRef" class="vote-input" placeholder="Contoh: TNG-89234892 atau Ref Bank" style="margin-bottom:8px;font-size:0.8rem;padding:8px 10px;">
+                    <input type="text" id="ewalletRef" class="vote-input" placeholder="e.g., TNG-89234892 or Bank Ref" style="margin-bottom:8px;font-size:0.8rem;padding:8px 10px;">
                     
                     <label style="font-size:0.72rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">
-                      RESIT / TANGKAP LAYAR (PILIHAN)
+                      PAYMENT RECEIPT / SCREENSHOT (OPTIONAL)
                     </label>
                     <input type="file" id="ewalletReceipt" accept="image/*" style="font-size:0.72rem;color:#94a3b8;margin-bottom:10px;width:100%;">
 
                     <button type="button" id="btnSubmitEwallet" class="pay-btn" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);padding:10px;" onclick="submitEwalletPayment()">
-                      ✅ SAYA TELAH PINDAH <span class="cur-sym">RM </span><span id="ewalletBtnAmt">1.00</span> (HANTAR PENGESAHAN)
+                      ✅ I HAVE TRANSFERRED <span class="cur-sym">RM </span><span id="ewalletBtnAmt">1.00</span> (SUBMIT PROOF)
                     </button>
                   </div>
                 </div>
@@ -276,40 +276,41 @@
 
               <!-- STRIPE CARD PANEL -->
               <div id="payPanelStripe" class="pay-panel">
-                 <button class="pay-btn stripe" onclick="payStripe('card')">💳 BAYAR <span class="cur-sym">RM </span><span id="stripeAmtBtn">1.00</span> GUNA KAD BANK</button>
-                 <p style="font-size:0.75rem;color:#64748b;margin-top:10px;text-align:center;">⚡ Undian disahkan dan dikreditkan secara automatik ke dalam carta!</p>
+                 <button class="pay-btn stripe" onclick="payStripe('card')">💳 PAY <span class="cur-sym">RM </span><span id="stripeAmtBtn">1.00</span> VIA BANK CARD</button>
+                 <p style="font-size:0.75rem;color:#64748b;margin-top:10px;text-align:center;">⚡ Votes confirmed and credited automatically to the leaderboard!</p>
               </div>
               <!-- STRIPE QR PANEL -->
               <div id="payPanelStripeqr" class="pay-panel">
                  <div id="qrInitialState" style="text-align:center;padding:8px 0;">
                    <button class="pay-btn stripe" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 15px rgba(2,132,199,0.35);" onclick="payStripe('qr')">
-                     ⚡ PAPARKAN KOD STRIPE QR (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">1.00</span>)
+                     ⚡ SHOW STRIPE QR CODE (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">1.00</span>)
                    </button>
-                   <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Imbas terus dengan telefon pintar guna GrabPay / DuitNow / Kad Bank</p>
+                   <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Scan directly with phone using DuitNow, GrabPay, or Banking App</p>
                  </div>
                  
                  <div id="qrActiveBox" style="display:none;text-align:center;padding:8px 0;">
                    <div style="background:#ffffff;padding:12px;border-radius:18px;display:inline-block;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
-                     <img id="qrCodeImage" src="" alt="Kod QR Stripe" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:8px;" />
+                     <img id="qrCodeImage" src="" alt="Stripe QR Code" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:8px;" />
                    </div>
                    <p style="font-size:0.82rem;color:#38bdf8;font-weight:700;margin-top:10px;">
-                     📲 Halakan kamera telefon atau aplikasi e-Wallet anda ke kod QR di atas
+                     📲 Point your phone camera or banking app at the QR code above
                    </p>
                    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
                      <a id="qrDirectLink" href="#" target="_blank" class="pay-btn stripe" style="font-size:0.75rem;padding:6px 14px;background:#334155;text-decoration:none;display:inline-block;width:auto;">
-                       🔗 Buka di Tab Baharu
+                       🔗 Open in New Tab
                      </a>
                      <button onclick="resetQRState()" class="pay-btn" style="font-size:0.75rem;padding:6px 14px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;cursor:pointer;">
-                       ↺ Tukar Jumlah
+                       ↺ Change Amount
                      </button>
                    </div>
                    <div id="qrPollingStatus" style="margin-top:10px;font-size:0.78rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:6px;">
-                     <span class="pulse" style="color:#38bdf8;">●</span> Menunggu bayaran daripada telefon anda...
+                     <span class="pulse" style="color:#38bdf8;">●</span> Awaiting payment from your phone...
                    </div>
                  </div>
               </div>
             </div>
           </div>
+
           <p id="payMsg" class="pay-msg"></p>
         </div>
       </div>

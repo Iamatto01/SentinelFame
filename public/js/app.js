@@ -377,7 +377,7 @@ async function openVote(id, presetVotes) {
     state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
+    if (rateEl) rateEl.textContent = `CHOOSE VOTE PACKAGE (1 VOTE = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
@@ -643,7 +643,7 @@ function initEditableTotal() {
       raw = minAmt;
       const msgEl = $('#payMsg');
       if (msgEl) {
-        msgEl.textContent = `ℹ️ Had minimum transaksi Stripe ialah ${state.currencySymbol || 'RM '}${minAmt.toFixed(2)} (${minVotes} Undian).`;
+        msgEl.textContent = `ℹ️ Stripe transaction minimum is ${state.currencySymbol || 'RM '}${minAmt.toFixed(2)} (${minVotes} Vote).`;
         msgEl.style.color = '#38bdf8';
       }
     }
@@ -699,11 +699,11 @@ function resetQRState() {
 async function payStripe(method = 'card') {
   const votes = getVotes();
   if (votes < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    showMsg('💡 Gerbang Stripe memerlukan minimum RM 2.00 (2 Undian). Untuk 1 Undian (RM 1.00), gunakan tab "E-WALLET (TNG / SHOPEE)"!');
+    showMsg('💡 Stripe requires a minimum of RM 2.00 (2 Votes). For 1 Vote (RM 1.00), please use "E-WALLET / DUITNOW QR"!');
     switchPayTab('ewallet');
     return;
   }
-  $('#payMsg').textContent = method === 'qr' ? '⚡ Menjana kod Stripe QR...' : '💳 Menyambung ke Stripe Checkout...';
+  $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
   try {
     const r = await postJSON('/api/pay/stripe', {
       singerId: state.currentSinger.id,
@@ -714,7 +714,7 @@ async function payStripe(method = 'card') {
     });
 
     if (!r.url) {
-      showMsg(r.error || 'Gerbang pembayaran Stripe belum dikonfigurasikan.');
+      showMsg(r.error || 'Stripe payment gateway is not configured.');
       return;
     }
 
@@ -744,7 +744,7 @@ async function payStripe(method = 'card') {
               qrPollInterval = null;
               const pollEl = $('#qrPollingStatus');
               if (pollEl) {
-                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PEMBAYARAN DITERIMA!</b> Undian telah berjaya direkodkan!`;
+                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PAYMENT RECEIVED!</b> Your votes have been recorded successfully!`;
               }
               setTimeout(() => {
                 closeModal();
@@ -829,7 +829,7 @@ function selectPayMethod(method) {
   const s3 = document.getElementById('payStep3');
   if (s2) s2.style.display = 'none';
   if (s3) s3.style.display = 'block';
-  const nameMap = { ewallet: '📲 E-Wallet / QR', stripe: '💳 Kad Bank', stripeqr: '📱 Stripe QR' };
+  const nameMap = { ewallet: '📲 E-Wallet / DuitNow QR', stripe: '💳 Credit / Debit Card', stripeqr: '📱 Stripe QR' };
   const nameEl = document.getElementById('selectedMethodName');
   if (nameEl) nameEl.textContent = nameMap[method] || method;
   switchPayTab(method);
@@ -886,16 +886,16 @@ function switchEwalletSubtab(type) {
 function copyEwalletNumber() {
   const num = $('#ewalletNumber')?.textContent || '';
   navigator.clipboard.writeText(num).then(() => {
-    showMsg('✅ Nombor e-Wallet / DuitNow telah disalin!');
+    showMsg('✅ E-Wallet / DuitNow ID copied to clipboard!');
     const msgEl = $('#payMsg');
     if (msgEl) msgEl.style.color = '#38bdf8';
-  }).catch(() => showMsg('Gagal menyalin nombor'));
+  }).catch(() => showMsg('Failed to copy ID'));
 }
 
 async function submitEwalletPayment() {
   const ref = ($('#ewalletRef')?.value || '').trim();
   if (!ref) {
-    showMsg('⚠️ Sila masukkan No. Rujukan Transaksi (Transaction Ref / ID) selepas anda membuat bayaran.');
+    showMsg('⚠️ Please enter Transaction Reference No. (Ref / ID) after completing payment.');
     const msgEl = $('#payMsg');
     if (msgEl) msgEl.style.color = '#ef4444';
     $('#ewalletRef')?.focus();
@@ -905,9 +905,9 @@ async function submitEwalletPayment() {
   const btn = $('#btnSubmitEwallet');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ Menghantar pengesahan bayaran...';
+    btn.textContent = '⏳ Submitting payment verification...';
   }
-  showMsg('⏳ Sedang memproses pengesahan bayaran anda...');
+  showMsg('⏳ Processing payment verification...');
   const msgEl = $('#payMsg');
   if (msgEl) msgEl.style.color = '#94a3b8';
 
@@ -928,7 +928,7 @@ async function submitEwalletPayment() {
     const res = await fetch('/api/pay/ewallet', { method: 'POST', body: fd });
     const r = await res.json();
     if (r.ok || r.paymentId) {
-      showMsg('🎉 ' + (r.message || 'Pengesahan bayaran e-Wallet berjaya dihantar! Undian akan dimasukkan selepas semakan admin.'));
+      showMsg('🎉 ' + (r.message || 'Payment verification submitted! Votes will be credited upon admin confirmation.'));
       if (msgEl) msgEl.style.color = '#10b981';
       if ($('#ewalletRef')) $('#ewalletRef').value = '';
       if (fileInput) fileInput.value = '';
@@ -937,19 +937,19 @@ async function submitEwalletPayment() {
         location.reload();
       }, 3000);
     } else {
-      showMsg('⚠️ ' + (r.error || 'Gagal menghantar bayaran. Sila cuba lagi.'));
+      showMsg('⚠️ ' + (r.error || 'Failed to submit payment. Please try again.'));
       if (msgEl) msgEl.style.color = '#ef4444';
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+        btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
       }
     }
   } catch (err) {
-    showMsg('⚠️ Ralat: ' + err.message);
+    showMsg('⚠️ Error: ' + err.message);
     if (msgEl) msgEl.style.color = '#ef4444';
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+      btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
     }
   }
 }

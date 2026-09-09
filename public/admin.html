@@ -42,16 +42,16 @@ async function loadPayments() {
 }
 
 function render(list) {
-  $('#payments').innerHTML = `<table><tr><th>ID</th><th>Singer</th><th>Voter</th><th>Method</th><th>Votes</th><th>Amount</th><th>Ref / Transaction ID</th><th>Status</th><th>Receipt</th><th>Tindakan</th></tr>` +
+  $('#payments').innerHTML = `<table><tr><th>ID</th><th>Singer</th><th>Voter</th><th>Method</th><th>Votes</th><th>Amount</th><th>Ref / Transaction ID</th><th>Status</th><th>Receipt</th><th>Action</th></tr>` +
     list.map(p => `<tr>
       <td>${p.id}</td><td>${p.singer_id}</td><td>${p.voter_name || 'Anonymous'}</td><td><span style="text-transform:uppercase;font-weight:700;color:#0284c7;">${p.method}</span></td>
       <td><b>${p.vote_count}</b></td><td>RM ${(p.amount_cents/100).toFixed(2)}</td>
       <td><code>${p.reference || '—'}</code></td>
       <td class="status-${p.status}">${p.status}</td>
-      <td>${p.receipt_image ? `<a href="${p.receipt_image}" target="_blank" style="color:#0284c7;font-weight:700;">Lihat Resit ↗</a>` : '—'}</td>
+      <td>${p.receipt_image ? `<a href="${p.receipt_image}" target="_blank" style="color:#0284c7;font-weight:700;">View Receipt ↗</a>` : '—'}</td>
       <td>${p.status === 'pending' ? `
-        <button class="approve" title="Luluskan Undian" onclick="act(${p.id},'approve')">✓ Lulus</button>
-        <button class="reject" title="Tolak" onclick="act(${p.id},'reject')">✕ Tolak</button>` : ''}</td>
+        <button class="approve" title="Approve Votes" onclick="act(${p.id},'approve')">✓ Approve</button>
+        <button class="reject" title="Reject" onclick="act(${p.id},'reject')">✕ Reject</button>` : ''}</td>
     </tr>`).join('') + '</table>';
 }
 
