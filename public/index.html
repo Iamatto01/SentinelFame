@@ -169,8 +169,8 @@
             </button>
             <button type="button" class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">
               <span class="pt-icon">💳</span>
-              <span class="pt-title">2. Stripe Card</span>
-              <span class="pt-sub">Visa · Mastercard</span>
+              <span class="pt-title">2. Card / Apple Pay</span>
+              <span class="pt-sub">Visa · MC · Apple Pay</span>
             </button>
             <button type="button" class="pay-tab" data-tab="stripeqr" onclick="switchPayTab('stripeqr')">
               <span class="pt-icon">📱</span>
@@ -253,13 +253,13 @@
               <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
                 <div style="font-size:2.2rem;margin-bottom:6px;">💳</div>
                 <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
-                  Stripe Card Payment
+                  Card & Apple Pay Checkout
                 </h4>
                 <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
-                  Pay securely with any <b>Visa, Mastercard, or American Express</b>. Instant automatic vote crediting!
+                  Pay securely with <b>Visa, Mastercard, Apple Pay, Google Pay</b>, or American Express. Direct card information entry, <b>no QR code</b>!
                 </p>
                 <button type="button" id="btnStripeCardDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);box-shadow:0 6px 20px rgba(99,102,241,0.4);border:none;color:#fff;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('card')">
-                  💳 PROCEED TO STRIPE (<span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span>) →
+                  💳 PAY WITH CARD / APPLE PAY (<span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span>) →
                 </button>
                 <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 256-bit SSL encrypted · Verified and credited automatically</p>
               </div>

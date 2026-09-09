@@ -61,16 +61,15 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   const host = (req && req.headers && req.headers['x-forwarded-host']) || (req && req.get && req.get('host')) || 'fame.sentinelai.studio';
   const origin = `${proto}://${host}`;
 
-  // Enabled payment methods on Malaysian Stripe account: Card & GrabPay (QR Code / App)
+  // Payment methods:
+  // Option 2 (Card / Apple Pay): strictly ['card'] -> provides Card Number, Expiry, CVC, Name + Apple Pay + Google Pay + Link! NO QR.
+  // Option 3 (QR): strictly ['grabpay'] for MYR
   let paymentMethodTypes = ['card'];
-  if (currency === 'myr') {
-    if (preferredMethod === 'grabpay') {
-      paymentMethodTypes = ['grabpay'];
-    } else if (preferredMethod === 'qr') {
-      paymentMethodTypes = ['grabpay', 'card'];
-    } else {
-      paymentMethodTypes = ['card', 'grabpay'];
-    }
+  if (preferredMethod === 'qr' || preferredMethod === 'grabpay') {
+    paymentMethodTypes = currency === 'myr' ? ['grabpay'] : ['card'];
+  } else {
+    // Strictly card only for direct card & Apple Pay checkout
+    paymentMethodTypes = ['card'];
   }
 
   const session = await stripe.checkout.sessions.create({
