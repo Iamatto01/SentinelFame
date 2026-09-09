@@ -182,19 +182,19 @@
             <div class="pay-methods-grid">
               <button type="button" class="pay-method-card" onclick="selectPayMethod('ewallet')">
                 <span class="pmc-icon">📲</span>
-                <span class="pmc-name">E-Wallet / DuitNow QR</span>
-                <span class="pmc-desc">Touch 'n Go · ShopeePay · DuitNow · GrabPay</span>
+                <span class="pmc-name">1. DuitNow & E-Wallet QR</span>
+                <span class="pmc-desc">Touch 'n Go · ShopeePay · DuitNow (1 Vote = RM 1.00)</span>
                 <span class="pmc-badge popular">🔥 Popular</span>
               </button>
               <button type="button" class="pay-method-card" onclick="selectPayMethod('stripe')">
                 <span class="pmc-icon">💳</span>
-                <span class="pmc-name">Credit / Debit Card</span>
-                <span class="pmc-desc">Visa · Mastercard · Stripe Secure</span>
+                <span class="pmc-name">2. Stripe Card Payment</span>
+                <span class="pmc-desc">Visa · Mastercard · Direct Encrypted Checkout</span>
               </button>
               <button type="button" class="pay-method-card" onclick="selectPayMethod('stripeqr')">
                 <span class="pmc-icon">📱</span>
-                <span class="pmc-name">Stripe QR</span>
-                <span class="pmc-desc">Scan & Pay — Instant Auto Confirmation</span>
+                <span class="pmc-name">3. QR for Stripe</span>
+                <span class="pmc-desc">Scan dynamic Stripe QR code with phone</span>
               </button>
             </div>
           </div>
@@ -203,7 +203,7 @@
           <div id="payStep3" class="pay-step3" style="display:none;">
             <div class="pay-method-header">
               <button type="button" class="pay-back-btn" onclick="backToMethods()">← Change Method</button>
-              <span id="selectedMethodName" class="pay-method-title">E-Wallet</span>
+              <span id="selectedMethodName" class="pay-method-title">1. DuitNow & E-Wallet QR</span>
             </div>
             <div class="pay-panels">
               <!-- EWALLET PANEL (TNG, SHOPEEPAY, DUITNOW, GRABPAY) -->
@@ -274,10 +274,20 @@
                 </div>
               </div>
 
-              <!-- STRIPE CARD PANEL -->
+              <!-- STRIPE CARD PANEL (OPTION 2: NO QR, DIRECT STRIPE) -->
               <div id="payPanelStripe" class="pay-panel">
-                 <button class="pay-btn stripe" onclick="payStripe('card')">💳 PAY <span class="cur-sym">RM </span><span id="stripeAmtBtn">1.00</span> VIA BANK CARD</button>
-                 <p style="font-size:0.75rem;color:#64748b;margin-top:10px;text-align:center;">⚡ Votes confirmed and credited automatically to the leaderboard!</p>
+                <div style="text-align:center;padding:14px 0;">
+                  <p style="font-size:0.88rem;color:#f8fafc;font-weight:800;margin-bottom:4px;">
+                    💳 Direct Stripe Card Checkout
+                  </p>
+                  <p style="font-size:0.75rem;color:#94a3b8;margin-bottom:16px;">
+                    Pay securely with any Visa, Mastercard, or bank card via Stripe's encrypted payment page.
+                  </p>
+                  <button type="button" id="btnStripeCardDirect" class="pay-btn stripe" style="padding:15px;font-size:0.95rem;font-weight:800;background:linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);box-shadow:0 6px 20px rgba(99,102,241,0.4);" onclick="payStripe('card')">
+                    💳 PROCEED TO STRIPE (<span class="cur-sym">RM </span><span id="stripeAmtBtn">1.00</span>) →
+                  </button>
+                  <p style="font-size:0.72rem;color:#64748b;margin-top:12px;">🔒 256-bit SSL encrypted. Verified and credited automatically!</p>
+                </div>
               </div>
               <!-- STRIPE QR PANEL -->
               <div id="payPanelStripeqr" class="pay-panel">

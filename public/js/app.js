@@ -634,18 +634,13 @@ function initEditableTotal() {
 
   el.addEventListener('blur', () => {
     totalEditing = false;
-    const minVotes = state.currency === 'myr' ? 2 : 1;
+    const minVotes = 1;
     const unit = state.pricePerVote || 1.0;
     const minAmt = minVotes * unit;
     // Normalize to currency format on exit
     let raw = parseFloat(el.textContent.replace(/[^0-9.]/g, ''));
     if (isNaN(raw) || raw < minAmt) {
       raw = minAmt;
-      const msgEl = $('#payMsg');
-      if (msgEl) {
-        msgEl.textContent = `ℹ️ Stripe transaction minimum is ${state.currencySymbol || 'RM '}${minAmt.toFixed(2)} (${minVotes} Vote).`;
-        msgEl.style.color = '#38bdf8';
-      }
     }
     raw = Math.round(raw * 100) / 100;
     el.textContent = raw.toFixed(2);
@@ -697,24 +692,29 @@ function resetQRState() {
 }
 
 async function payStripe(method = 'card') {
-  const votes = getVotes();
+  let votes = getVotes();
   if (votes < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    showMsg('💡 Stripe requires a minimum of RM 2.00 (2 Votes). For 1 Vote (RM 1.00), please use "E-WALLET / DUITNOW QR"!');
-    switchPayTab('ewallet');
-    return;
+    setVotes(2);
+    votes = 2;
   }
   $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
+  const btn = $('#btnStripeCardDirect');
+  if (btn && method === 'card') {
+    btn.disabled = true;
+    btn.textContent = '⏳ Connecting to Stripe...';
+  }
   try {
     const r = await postJSON('/api/pay/stripe', {
       singerId: state.currentSinger.id,
       votes: votes,
-      voterName: $('#voterName').value,
-      voterMessage: $('#voterMessage').value,
+      voterName: $('#voterName')?.value || 'Anonymous',
+      voterMessage: $('#voterMessage')?.value || '',
       preferredMethod: method
     });
 
     if (!r.url) {
       showMsg(r.error || 'Stripe payment gateway is not configured.');
+      if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
       return;
     }
 
@@ -755,11 +755,12 @@ async function payStripe(method = 'card') {
         }, 2000);
       }
     } else {
-      // Card payment redirects directly to Stripe
-      location.href = r.url;
+      // Direct Stripe Card Checkout: redirect directly to Stripe!
+      window.location.href = r.url;
     }
   } catch (err) {
-    showMsg('Ralat Stripe: ' + err.message);
+    showMsg('⚠️ Error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
   }
 }
 
@@ -829,9 +830,18 @@ function selectPayMethod(method) {
   const s3 = document.getElementById('payStep3');
   if (s2) s2.style.display = 'none';
   if (s3) s3.style.display = 'block';
-  const nameMap = { ewallet: '📲 E-Wallet / DuitNow QR', stripe: '💳 Credit / Debit Card', stripeqr: '📱 Stripe QR' };
+  const nameMap = {
+    ewallet: '📲 1. DuitNow & E-Wallet QR',
+    stripe: '💳 2. Stripe Card Payment',
+    stripeqr: '📱 3. QR for Stripe'
+  };
   const nameEl = document.getElementById('selectedMethodName');
   if (nameEl) nameEl.textContent = nameMap[method] || method;
+
+  // Stripe platform enforces minimum RM 2.00 for MYR currency
+  if ((method === 'stripe' || method === 'stripeqr') && getVotes() < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
+    setVotes(2);
+  }
   switchPayTab(method);
 }
 function backToMethods() {

@@ -22,7 +22,7 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   // Stripe Malaysia strictly enforces a minimum transaction limit of RM 2.00 (200 cents).
   // At RM 1.00 / vote, the minimum transaction is 2 votes.
   if (currency === 'myr' && voteCount < 2) {
-    throw new Error('Had minimum transaksi Stripe Malaysia ialah 2 undian (RM 2.00)');
+    throw new Error('Minimum transaction limit for Stripe Malaysia is RM 2.00 (2 votes)');
   }
   const amountCents = voteCount * unitAmount;
 
