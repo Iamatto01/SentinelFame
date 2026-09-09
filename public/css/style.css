@@ -850,22 +850,85 @@ main {
 
 /* Payment tabs */
 .pay-tabs {
-  display: flex; gap: 0; border: 2px solid var(--ink);
-  border-radius: 4px; overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 14px;
 }
 .pay-tab {
-  flex: 1; padding: 10px 0;
-  font-family: 'Fraunces', serif; font-weight: 800; font-size: .78rem;
-  letter-spacing: .04em;
-  border: none; background: #fffdf7; color: var(--ink-soft);
-  cursor: pointer; transition: all .15s;
+  padding: 10px 4px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  border: 2px solid var(--ink);
+  background: #fffdf7;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 2.5px 2.5px 0 var(--ink);
 }
-.pay-tab:not(:last-child) { border-right: 2px solid var(--ink); }
-.pay-tab.active { background: var(--ink); color: var(--paper); }
-.pay-tab:hover:not(.active) { background: #f5f0e6; }
+.pay-tab .pt-icon {
+  font-size: 1.3rem;
+  margin-bottom: 3px;
+}
+.pay-tab .pt-title {
+  font-weight: 800;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+.pay-tab .pt-sub {
+  font-size: 0.62rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.pay-tab:hover {
+  background: #f5f0e6;
+  transform: translate(-1px, -1px);
+  box-shadow: 3.5px 3.5px 0 var(--ink);
+}
+.pay-tab.active {
+  background: var(--ink);
+  color: #fffdf7;
+  border-color: var(--ink);
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 transparent;
+}
+.pay-tab.active .pt-sub {
+  color: #cbd5e1;
+}
+
+/* E-wallet subtabs */
+.ew-subtab {
+  flex: 1;
+  padding: 8px 4px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1.5px solid var(--ink);
+  background: #fffdf7;
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+}
+.ew-subtab:hover {
+  background: #f5f0e6;
+}
+.ew-subtab.active {
+  background: var(--ink);
+  color: #ffffff;
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 transparent;
+}
 
 /* Payment panels */
-.pay-panels { margin-top: 8px; }
+.pay-panels { margin-top: 6px; }
 .pay-panel { display: none; flex-direction: column; gap: 8px; }
 .pay-panel.active { display: flex; }
 

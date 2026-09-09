@@ -420,16 +420,8 @@ async function openVote(id, presetVotes) {
     $('#cryptoAddr').textContent = state.cryptoConfig.wallet || 'Not configured';
   } catch { state.cryptoConfig = null; }
 
-  // Default to e-wallet tab
-  // Reset to Step 1 (single pay button)
-  const s1 = document.getElementById('payStep1');
-  const s2 = document.getElementById('payStep2');
-  const s3 = document.getElementById('payStep3');
-  if (s1) s1.style.display = 'block';
-  if (s2) s2.style.display = 'none';
-  if (s3) s3.style.display = 'none';
-  switchPayTab('ewallet');
-  if (typeof switchEwalletSubtab === 'function') switchEwalletSubtab('tng');
+  // Default to Stripe Card payment tab
+  switchPayTab('stripe');
 
   // Bottom: Bio, Top Song, Social, Donations
   loadBio(s);
@@ -805,50 +797,15 @@ function switchPayTab(tab) {
   const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : (tab === 'ewallet' ? 'payPanelEwallet' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
   document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
+
+  // Stripe platform enforces minimum RM 2.00 for MYR currency
+  if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
+    setVotes(2);
+  }
+
   if (tab === 'ewallet') {
     switchEwalletSubtab(activeEwalletType || 'tng');
   }
-}
-
-// ================= NEW PAYMENT FLOW (Step 1 → 2 → 3) =================
-function showPaymentMethods() {
-  const s1 = document.getElementById('payStep1');
-  const s2 = document.getElementById('payStep2');
-  if (s1) s1.style.display = 'none';
-  if (s2) s2.style.display = 'block';
-}
-function hidePaymentMethods() {
-  const s1 = document.getElementById('payStep1');
-  const s2 = document.getElementById('payStep2');
-  const s3 = document.getElementById('payStep3');
-  if (s1) s1.style.display = 'block';
-  if (s2) s2.style.display = 'none';
-  if (s3) s3.style.display = 'none';
-}
-function selectPayMethod(method) {
-  const s2 = document.getElementById('payStep2');
-  const s3 = document.getElementById('payStep3');
-  if (s2) s2.style.display = 'none';
-  if (s3) s3.style.display = 'block';
-  const nameMap = {
-    ewallet: '📲 1. DuitNow & E-Wallet QR',
-    stripe: '💳 2. Stripe Card Payment',
-    stripeqr: '📱 3. QR for Stripe'
-  };
-  const nameEl = document.getElementById('selectedMethodName');
-  if (nameEl) nameEl.textContent = nameMap[method] || method;
-
-  // Stripe platform enforces minimum RM 2.00 for MYR currency
-  if ((method === 'stripe' || method === 'stripeqr') && getVotes() < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    setVotes(2);
-  }
-  switchPayTab(method);
-}
-function backToMethods() {
-  const s2 = document.getElementById('payStep2');
-  const s3 = document.getElementById('payStep3');
-  if (s2) s2.style.display = 'block';
-  if (s3) s3.style.display = 'none';
 }
 
 // ================= E-WALLET (TNG, SHOPEEPAY, DUITNOW, GRABPAY) =================
@@ -856,7 +813,7 @@ let activeEwalletType = 'tng';
 
 function switchEwalletSubtab(type) {
   activeEwalletType = type;
-  document.querySelectorAll('.ewallet-subtabs .pay-tab').forEach(b => {
+  document.querySelectorAll('.ewallet-subtabs .ew-subtab, .ewallet-subtabs .pay-tab').forEach(b => {
     b.classList.toggle('active',
       (type === 'tng' && b.id === 'subtabTng') ||
       (type === 'shopeepay' && b.id === 'subtabShopee') ||
