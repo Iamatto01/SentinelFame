@@ -152,6 +152,8 @@ export async function apiPaymentMethods(env) {
   return json({
     stripe: !!env.STRIPE_SECRET_KEY,
     stripe_qr: !!env.STRIPE_SECRET_KEY,
+    grabpay: !!env.STRIPE_SECRET_KEY,
+    googlepay: !!env.STRIPE_SECRET_KEY,
     currency: currency,
     currency_symbol: currency === 'myr' ? 'RM ' : '$',
     price_per_vote: unitPrice,

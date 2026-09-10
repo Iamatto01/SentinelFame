@@ -180,6 +180,16 @@
               <span class="pt-title">2. QR for Stripe</span>
               <span class="pt-sub">Scan to Pay</span>
             </button>
+            <button type="button" class="pay-tab" data-tab="grabpay" onclick="switchPayTab('grabpay')">
+              <span class="pt-icon">🟢</span>
+              <span class="pt-title">3. GrabPay</span>
+              <span class="pt-sub">Malaysia · Singapore</span>
+            </button>
+            <button type="button" class="pay-tab" data-tab="googlepay" onclick="switchPayTab('googlepay')">
+              <span class="pt-icon">🔵</span>
+              <span class="pt-title">4. Google Pay</span>
+              <span class="pt-sub">Global Wallet</span>
+            </button>
           </div>
 
           <div class="pay-panels">
@@ -236,6 +246,40 @@
                     <span class="pulse" style="color:var(--vermilion);">●</span> Awaiting payment from your phone...
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- 4. GRABPAY PANEL -->
+            <div id="payPanelGrabpay" class="pay-panel">
+              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
+                <div style="font-size:2.2rem;margin-bottom:6px;">🟢</div>
+                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
+                  GrabPay Checkout
+                </h4>
+                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
+                  Pay securely with your <b>GrabPay wallet</b>. You will be redirected to Grab to complete the payment.
+                </p>
+                <button type="button" id="btnGrabpayDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:#00b14f;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('grabpay')">
+                  🟢 PAY WITH GRABPAY (<span class="cur-sym">RM </span><span id="grabpayAmtBtn">2.00</span>) →
+                </button>
+                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 Secure payment via Stripe · Verified automatically</p>
+              </div>
+            </div>
+
+            <!-- 5. GOOGLE PAY PANEL -->
+            <div id="payPanelGooglepay" class="pay-panel">
+              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
+                <div style="font-size:2.2rem;margin-bottom:6px;">🔵</div>
+                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
+                  Google Pay Checkout
+                </h4>
+                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
+                  Pay securely with <b>Google Pay</b>. Use your saved cards in Google account for fast checkout.
+                </p>
+                <button type="button" id="btnGooglepayDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:#4285f4;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('googlepay')">
+                  🔵 PAY WITH GOOGLE PAY (<span class="cur-sym">RM </span><span id="googlepayAmtBtn">2.00</span>) →
+                </button>
+                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 Secure payment via Stripe · Verified automatically</p>
               </div>
             </div>
           </div>

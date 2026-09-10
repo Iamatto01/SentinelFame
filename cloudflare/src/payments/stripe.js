@@ -29,7 +29,7 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
     singer_id: singerId,
     voter_name: voterName || 'Anonymous',
     voter_message: voterMessage || '',
-    method: preferredMethod === 'qr' ? 'stripe_qr' : (preferredMethod === 'grabpay' ? 'grabpay' : 'stripe'),
+    method: preferredMethod === 'qr' ? 'stripe_qr' : (preferredMethod === 'grabpay' ? 'grabpay' : (preferredMethod === 'googlepay' ? 'googlepay' : 'stripe')),
     vote_count: votes,
     amount_cents: amountCents,
     currency: currency.toUpperCase(),
@@ -60,8 +60,12 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
   const origin = getOrigin(request);
 
   let paymentMethodTypes = ['card'];
-  if (preferredMethod === 'qr' || preferredMethod === 'grabpay') {
+  if (preferredMethod === 'qr') {
     paymentMethodTypes = currency === 'myr' ? ['grabpay'] : ['card'];
+  } else if (preferredMethod === 'grabpay') {
+    paymentMethodTypes = ['grabpay'];
+  } else if (preferredMethod === 'googlepay') {
+    paymentMethodTypes = ['card']; // Google Pay uses card payment method with wallet
   } else {
     paymentMethodTypes = ['card'];
   }

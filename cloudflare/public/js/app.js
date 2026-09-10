@@ -604,6 +604,8 @@ function updateTotal() {
   const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
   set('#stripeAmtBtn', amount.toFixed(2));
   set('#stripeQrAmtBtn', amount.toFixed(2));
+  set('#grabpayAmtBtn', amount.toFixed(2));
+  set('#googlepayAmtBtn', amount.toFixed(2));
   set('#megaPayAmt', amount.toFixed(2));
   set('#megaVoteCount', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
@@ -816,7 +818,7 @@ function switchPayTab(tab) {
   $('#payMsg').textContent = '';
 
   // Stripe platform enforces minimum RM 2.00 for MYR currency — inform, don't silently bump
-  if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < stripeMinVotes()) {
+  if ((tab === 'stripe' || tab === 'stripeqr' || tab === 'grabpay' || tab === 'googlepay') && getVotes() < stripeMinVotes()) {
     showMsg(`ℹ️ Stripe payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes).`);
   }
 }
