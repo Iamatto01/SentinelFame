@@ -59,10 +59,18 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
 
   const origin = getOrigin(request);
 
-  // Let Stripe auto-detect payment methods based on Dashboard settings.
-  // This allows GrabPay, Google Pay, Apple Pay, etc. to appear automatically
-  // when enabled in Stripe Dashboard → Settings → Payment Methods.
+  // Force payment methods to ensure GrabPay, Google Pay, and PayPal appear
+  // in Stripe Checkout. These must be enabled in Dashboard → Payment Methods.
+  const paymentMethodTypes = ['card', 'grabpay'];
+  
+  // Add PayPal custom payment method if configured
+  const paypalCustomType = env.PAYPAL_CUSTOM_TYPE_ID || 'cpmt_1UE6LkCLBdMAPXx01q9d7UT6';
+  if (paypalCustomType) {
+    paymentMethodTypes.push(paypalCustomType);
+  }
+
   const body = {
+    payment_method_types: paymentMethodTypes,
     line_items: [{
       price_data: {
         currency: currency,
