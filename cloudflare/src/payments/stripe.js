@@ -59,19 +59,10 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
 
   const origin = getOrigin(request);
 
-  let paymentMethodTypes = ['card'];
-  if (preferredMethod === 'qr') {
-    paymentMethodTypes = currency === 'myr' ? ['grabpay'] : ['card'];
-  } else if (preferredMethod === 'grabpay') {
-    paymentMethodTypes = ['grabpay'];
-  } else if (preferredMethod === 'googlepay') {
-    paymentMethodTypes = ['card']; // Google Pay uses card payment method with wallet
-  } else {
-    paymentMethodTypes = ['card'];
-  }
-
+  // Let Stripe auto-detect payment methods based on Dashboard settings.
+  // This allows GrabPay, Google Pay, Apple Pay, etc. to appear automatically
+  // when enabled in Stripe Dashboard → Settings → Payment Methods.
   const body = {
-    payment_method_types: paymentMethodTypes,
     line_items: [{
       price_data: {
         currency: currency,
