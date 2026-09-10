@@ -59,15 +59,10 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
 
   const origin = getOrigin(request);
 
-  // Force payment methods to ensure GrabPay, Google Pay, and PayPal appear
-  // in Stripe Checkout. These must be enabled in Dashboard → Payment Methods.
+  // Force payment methods to ensure GrabPay appears in Stripe Checkout.
+  // Note: Custom payment method IDs (cpmt_*) cannot be used in Checkout Sessions.
+  // PayPal must use the standard 'paypal' type if available, or be removed.
   const paymentMethodTypes = ['card', 'grabpay'];
-  
-  // Add PayPal custom payment method if configured
-  const paypalCustomType = env.PAYPAL_CUSTOM_TYPE_ID || 'cpmt_1UE6LkCLBdMAPXx01q9d7UT6';
-  if (paypalCustomType) {
-    paymentMethodTypes.push(paypalCustomType);
-  }
 
   const body = {
     payment_method_types: paymentMethodTypes,
