@@ -377,7 +377,7 @@ async function openVote(id, presetVotes) {
     state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `CHOOSE VOTE PACKAGE (1 VOTE = ${state.currencySymbol}${state.pricePerVote.toFixed(2)})`;
+    if (rateEl) rateEl.textContent = `CHOOSE VOTE PACKAGE (1 VOTE = ${state.currencySymbol}${state.pricePerVote.toFixed(2)} · MIN. 2 VOTES)`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
@@ -386,8 +386,8 @@ async function openVote(id, presetVotes) {
     state.currencySymbol = 'RM ';
   }
 
-  // Votes (Default to 2 votes = RM 2.00 due to Stripe Malaysia RM 2.00 minimum rule)
-  const minVotes = 1;
+  // Votes (Default to 2 votes = RM 2.00)
+  const minVotes = 2;
   state.currentVotes = presetVotes ? Math.max(minVotes, +presetVotes) : minVotes;
   const initialTotal = (state.currentVotes * state.pricePerVote).toFixed(2);
   const totalAmtEl = $('#totalAmt');
@@ -532,14 +532,14 @@ $('#voteModal')?.addEventListener('click', e => { if (e.target.id === 'voteModal
 let totalEditing = false;
 
 function getVotes() {
-  const minVotes = 1;
+  const minVotes = 2;
   const unit = state.pricePerVote || 1.0;
   if (state.currentVotes && !totalEditing) return Math.max(minVotes, state.currentVotes);
   const raw = parseFloat(($('#totalAmt')?.textContent || String(unit * minVotes)).replace(/[^0-9.]/g, ''));
   return isNaN(raw) || raw < (unit * minVotes) ? minVotes : Math.max(minVotes, Math.round(raw / unit));
 }
 function setVotes(n) {
-  const minVotes = 1;
+  const minVotes = 2;
   const votes = Math.max(minVotes, +n);
   state.currentVotes = votes;
   const unit = state.pricePerVote || 1.0;
@@ -550,9 +550,36 @@ function setVotes(n) {
   updateTotal();
 }
 
+// ---------- Custom vote count ----------
+function openCustomVote() {
+  const box = $('#customVoteBox');
+  if (!box) return;
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) {
+    const input = $('#customVoteInput');
+    if (input) { input.value = getVotes(); input.focus(); input.select(); }
+  }
+}
+
+function applyCustomVote() {
+  const input = $('#customVoteInput');
+  if (!input) return;
+  const n = parseInt(input.value, 10);
+  if (isNaN(n) || n < 2) { showMsg('⚠️ Vote count must be at least 2 votes (min. RM 2.00).'); return; }
+  if (n > 10000) { showMsg('⚠️ Maximum 10,000 votes per transaction.'); return; }
+  setVotes(n);
+  $('#customVoteBox').classList.add('hidden');
+  showMsg(`✅ Custom amount set: ${n} votes = ${state.currencySymbol || 'RM '}${(n * (state.pricePerVote || 1)).toFixed(2)}`);
+}
+
+// Enter key inside custom input applies it
+document.addEventListener('DOMContentLoaded', () => {
+  const ci = $('#customVoteInput');
+  if (ci) ci.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCustomVote(); } });
+});
+
 // Mark all preset buttons unselected and show a "CUSTOM" chip in the picker
-function markCustomTotal() {
-  const picker = document.querySelector('.vote-picker');
+function markCustomTotal() {  const picker = document.querySelector('.vote-picker');
   if (!picker) return;
   document.querySelectorAll('.vote-picker button').forEach(b => b.classList.remove('active'));
   let chip = picker.querySelector('.custom-chip');
@@ -572,7 +599,7 @@ function clearCustomChip() {
 }
 
 function getTotalAmount() {
-  const minVotes = 1;
+  const minVotes = 2;
   const unit = state.pricePerVote || 1.0;
   const minAmt = minVotes * unit;
   if (!totalEditing) {
@@ -683,11 +710,18 @@ function resetQRState() {
   $('#payMsg').textContent = '';
 }
 
+// Stripe MYR enforces a RM 2.00 minimum charge (= 2 votes at RM 1/vote).
+// This is a platform limit, NOT a silent bump: we tell the user and let them choose.
+function stripeMinVotes() {
+  return (state.currency || 'myr').toLowerCase() === 'myr' ? 2 : 1;
+}
+
 async function payStripe(method = 'card') {
-  let votes = getVotes();
-  if (votes < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    setVotes(2);
-    votes = 2;
+  const votes = getVotes();
+  const minVotes = stripeMinVotes();
+  if (votes < minVotes) {
+    showMsg(`⚠️ Stripe requires a minimum of ${state.currencySymbol || 'RM '}${(minVotes * (state.pricePerVote || 1)).toFixed(2)} (${minVotes} votes) for card payments. Use "DuitNow QR" tab for 1 vote = ${state.currencySymbol || 'RM '}1.00, or increase your votes.`);
+    return;
   }
   $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
   const btn = $('#btnStripeCardDirect');
@@ -798,9 +832,9 @@ function switchPayTab(tab) {
   document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
 
-  // Stripe platform enforces minimum RM 2.00 for MYR currency
-  if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    setVotes(2);
+  // Stripe platform enforces minimum RM 2.00 for MYR currency — inform, don't silently bump
+  if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < stripeMinVotes()) {
+    showMsg(`ℹ️ Stripe card payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes). DuitNow QR supports 1 vote = ${state.currencySymbol || 'RM '}1.00.`);
   }
 
   if (tab === 'ewallet') {

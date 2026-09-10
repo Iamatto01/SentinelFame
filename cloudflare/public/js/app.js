@@ -377,7 +377,7 @@ async function openVote(id, presetVotes) {
     state.pricePerVote = state.methods.price_per_vote || 1.0;
     state.currencySymbol = state.methods.currency_symbol || (state.currency === 'myr' ? 'RM ' : '$');
     const rateEl = $('#voteRateLabel');
-    if (rateEl) rateEl.textContent = `BILANGAN UNDIAN (1 UNDIAN = ${state.currencySymbol}${state.pricePerVote.toFixed(2)} · MIN. 2 UNDIAN)`;
+    if (rateEl) rateEl.textContent = `CHOOSE VOTE PACKAGE (1 VOTE = ${state.currencySymbol}${state.pricePerVote.toFixed(2)} · MIN. 2 VOTES)`;
     const preEl = $('#currencyPrefix');
     if (preEl) preEl.textContent = state.currencySymbol;
   } catch {
@@ -386,8 +386,8 @@ async function openVote(id, presetVotes) {
     state.currencySymbol = 'RM ';
   }
 
-  // Votes (Default to 2 votes = RM 2.00 due to Stripe Malaysia RM 2.00 minimum rule)
-  const minVotes = state.currency === 'myr' ? 2 : 1;
+  // Votes (Default to 2 votes = RM 2.00)
+  const minVotes = 2;
   state.currentVotes = presetVotes ? Math.max(minVotes, +presetVotes) : minVotes;
   const initialTotal = (state.currentVotes * state.pricePerVote).toFixed(2);
   const totalAmtEl = $('#totalAmt');
@@ -420,9 +420,8 @@ async function openVote(id, presetVotes) {
     $('#cryptoAddr').textContent = state.cryptoConfig.wallet || 'Not configured';
   } catch { state.cryptoConfig = null; }
 
-  // Default to e-wallet tab
-  switchPayTab('ewallet');
-  if (typeof switchEwalletSubtab === 'function') switchEwalletSubtab('tng');
+  // Default to Stripe Card payment tab
+  switchPayTab('stripe');
 
   // Bottom: Bio, Top Song, Social, Donations
   loadBio(s);
@@ -533,14 +532,14 @@ $('#voteModal')?.addEventListener('click', e => { if (e.target.id === 'voteModal
 let totalEditing = false;
 
 function getVotes() {
-  const minVotes = 1;
+  const minVotes = 2;
   const unit = state.pricePerVote || 1.0;
   if (state.currentVotes && !totalEditing) return Math.max(minVotes, state.currentVotes);
   const raw = parseFloat(($('#totalAmt')?.textContent || String(unit * minVotes)).replace(/[^0-9.]/g, ''));
   return isNaN(raw) || raw < (unit * minVotes) ? minVotes : Math.max(minVotes, Math.round(raw / unit));
 }
 function setVotes(n) {
-  const minVotes = 1;
+  const minVotes = 2;
   const votes = Math.max(minVotes, +n);
   state.currentVotes = votes;
   const unit = state.pricePerVote || 1.0;
@@ -551,9 +550,36 @@ function setVotes(n) {
   updateTotal();
 }
 
+// ---------- Custom vote count ----------
+function openCustomVote() {
+  const box = $('#customVoteBox');
+  if (!box) return;
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) {
+    const input = $('#customVoteInput');
+    if (input) { input.value = getVotes(); input.focus(); input.select(); }
+  }
+}
+
+function applyCustomVote() {
+  const input = $('#customVoteInput');
+  if (!input) return;
+  const n = parseInt(input.value, 10);
+  if (isNaN(n) || n < 2) { showMsg('⚠️ Vote count must be at least 2 votes (min. RM 2.00).'); return; }
+  if (n > 10000) { showMsg('⚠️ Maximum 10,000 votes per transaction.'); return; }
+  setVotes(n);
+  $('#customVoteBox').classList.add('hidden');
+  showMsg(`✅ Custom amount set: ${n} votes = ${state.currencySymbol || 'RM '}${(n * (state.pricePerVote || 1)).toFixed(2)}`);
+}
+
+// Enter key inside custom input applies it
+document.addEventListener('DOMContentLoaded', () => {
+  const ci = $('#customVoteInput');
+  if (ci) ci.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCustomVote(); } });
+});
+
 // Mark all preset buttons unselected and show a "CUSTOM" chip in the picker
-function markCustomTotal() {
-  const picker = document.querySelector('.vote-picker');
+function markCustomTotal() {  const picker = document.querySelector('.vote-picker');
   if (!picker) return;
   document.querySelectorAll('.vote-picker button').forEach(b => b.classList.remove('active'));
   let chip = picker.querySelector('.custom-chip');
@@ -573,7 +599,7 @@ function clearCustomChip() {
 }
 
 function getTotalAmount() {
-  const minVotes = 1;
+  const minVotes = 2;
   const unit = state.pricePerVote || 1.0;
   const minAmt = minVotes * unit;
   if (!totalEditing) {
@@ -594,6 +620,8 @@ function updateTotal() {
   set('#grabpayAmtBtn', amount.toFixed(2));
   set('#ewalletAmtSync', amount.toFixed(2));
   set('#ewalletBtnAmt', amount.toFixed(2));
+  set('#megaPayAmt', amount.toFixed(2));
+  set('#megaVoteCount', String(votes));
   set('#ewalletVotesSync', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
   set('#cryptoAmtDollar', `$${amount.toFixed(2)}`);
@@ -625,18 +653,13 @@ function initEditableTotal() {
 
   el.addEventListener('blur', () => {
     totalEditing = false;
-    const minVotes = state.currency === 'myr' ? 2 : 1;
+    const minVotes = 1;
     const unit = state.pricePerVote || 1.0;
     const minAmt = minVotes * unit;
     // Normalize to currency format on exit
     let raw = parseFloat(el.textContent.replace(/[^0-9.]/g, ''));
     if (isNaN(raw) || raw < minAmt) {
       raw = minAmt;
-      const msgEl = $('#payMsg');
-      if (msgEl) {
-        msgEl.textContent = `ℹ️ Had minimum transaksi Stripe ialah ${state.currencySymbol || 'RM '}${minAmt.toFixed(2)} (${minVotes} Undian).`;
-        msgEl.style.color = '#38bdf8';
-      }
     }
     raw = Math.round(raw * 100) / 100;
     el.textContent = raw.toFixed(2);
@@ -687,25 +710,37 @@ function resetQRState() {
   $('#payMsg').textContent = '';
 }
 
+// Stripe MYR enforces a RM 2.00 minimum charge (= 2 votes at RM 1/vote).
+// This is a platform limit, NOT a silent bump: we tell the user and let them choose.
+function stripeMinVotes() {
+  return (state.currency || 'myr').toLowerCase() === 'myr' ? 2 : 1;
+}
+
 async function payStripe(method = 'card') {
   const votes = getVotes();
-  if (votes < 2 && (state.currency || 'myr').toLowerCase() === 'myr') {
-    showMsg('💡 Gerbang Stripe memerlukan minimum RM 2.00 (2 Undian). Untuk 1 Undian (RM 1.00), gunakan tab "E-WALLET (TNG / SHOPEE)"!');
-    switchPayTab('ewallet');
+  const minVotes = stripeMinVotes();
+  if (votes < minVotes) {
+    showMsg(`⚠️ Stripe requires a minimum of ${state.currencySymbol || 'RM '}${(minVotes * (state.pricePerVote || 1)).toFixed(2)} (${minVotes} votes) for card payments. Use "DuitNow QR" tab for 1 vote = ${state.currencySymbol || 'RM '}1.00, or increase your votes.`);
     return;
   }
-  $('#payMsg').textContent = method === 'qr' ? '⚡ Menjana kod Stripe QR...' : '💳 Menyambung ke Stripe Checkout...';
+  $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
+  const btn = $('#btnStripeCardDirect');
+  if (btn && method === 'card') {
+    btn.disabled = true;
+    btn.textContent = '⏳ Connecting to Stripe...';
+  }
   try {
     const r = await postJSON('/api/pay/stripe', {
       singerId: state.currentSinger.id,
       votes: votes,
-      voterName: $('#voterName').value,
-      voterMessage: $('#voterMessage').value,
+      voterName: $('#voterName')?.value || 'Anonymous',
+      voterMessage: $('#voterMessage')?.value || '',
       preferredMethod: method
     });
 
     if (!r.url) {
-      showMsg(r.error || 'Gerbang pembayaran Stripe belum dikonfigurasikan.');
+      showMsg(r.error || 'Stripe payment gateway is not configured.');
+      if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
       return;
     }
 
@@ -735,7 +770,7 @@ async function payStripe(method = 'card') {
               qrPollInterval = null;
               const pollEl = $('#qrPollingStatus');
               if (pollEl) {
-                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PEMBAYARAN DITERIMA!</b> Undian telah berjaya direkodkan!`;
+                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PAYMENT RECEIVED!</b> Your votes have been recorded successfully!`;
               }
               setTimeout(() => {
                 closeModal();
@@ -746,11 +781,12 @@ async function payStripe(method = 'card') {
         }, 2000);
       }
     } else {
-      // Card payment redirects directly to Stripe
-      location.href = r.url;
+      // Direct Stripe Card Checkout: redirect directly to Stripe!
+      window.location.href = r.url;
     }
   } catch (err) {
-    showMsg('Ralat Stripe: ' + err.message);
+    showMsg('⚠️ Error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
   }
 }
 
@@ -795,6 +831,12 @@ function switchPayTab(tab) {
   const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : (tab === 'ewallet' ? 'payPanelEwallet' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
   document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
+
+  // Stripe platform enforces minimum RM 2.00 for MYR currency — inform, don't silently bump
+  if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < stripeMinVotes()) {
+    showMsg(`ℹ️ Stripe card payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes). DuitNow QR supports 1 vote = ${state.currencySymbol || 'RM '}1.00.`);
+  }
+
   if (tab === 'ewallet') {
     switchEwalletSubtab(activeEwalletType || 'tng');
   }
@@ -805,7 +847,7 @@ let activeEwalletType = 'tng';
 
 function switchEwalletSubtab(type) {
   activeEwalletType = type;
-  document.querySelectorAll('.ewallet-subtabs .pay-tab').forEach(b => {
+  document.querySelectorAll('.ewallet-subtabs .ew-subtab, .ewallet-subtabs .pay-tab').forEach(b => {
     b.classList.toggle('active',
       (type === 'tng' && b.id === 'subtabTng') ||
       (type === 'shopeepay' && b.id === 'subtabShopee') ||
@@ -845,16 +887,16 @@ function switchEwalletSubtab(type) {
 function copyEwalletNumber() {
   const num = $('#ewalletNumber')?.textContent || '';
   navigator.clipboard.writeText(num).then(() => {
-    showMsg('✅ Nombor e-Wallet / DuitNow telah disalin!');
+    showMsg('✅ E-Wallet / DuitNow ID copied to clipboard!');
     const msgEl = $('#payMsg');
     if (msgEl) msgEl.style.color = '#38bdf8';
-  }).catch(() => showMsg('Gagal menyalin nombor'));
+  }).catch(() => showMsg('Failed to copy ID'));
 }
 
 async function submitEwalletPayment() {
   const ref = ($('#ewalletRef')?.value || '').trim();
   if (!ref) {
-    showMsg('⚠️ Sila masukkan No. Rujukan Transaksi (Transaction Ref / ID) selepas anda membuat bayaran.');
+    showMsg('⚠️ Please enter Transaction Reference No. (Ref / ID) after completing payment.');
     const msgEl = $('#payMsg');
     if (msgEl) msgEl.style.color = '#ef4444';
     $('#ewalletRef')?.focus();
@@ -864,9 +906,9 @@ async function submitEwalletPayment() {
   const btn = $('#btnSubmitEwallet');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ Menghantar pengesahan bayaran...';
+    btn.textContent = '⏳ Submitting payment verification...';
   }
-  showMsg('⏳ Sedang memproses pengesahan bayaran anda...');
+  showMsg('⏳ Processing payment verification...');
   const msgEl = $('#payMsg');
   if (msgEl) msgEl.style.color = '#94a3b8';
 
@@ -887,7 +929,7 @@ async function submitEwalletPayment() {
     const res = await fetch('/api/pay/ewallet', { method: 'POST', body: fd });
     const r = await res.json();
     if (r.ok || r.paymentId) {
-      showMsg('🎉 ' + (r.message || 'Pengesahan bayaran e-Wallet berjaya dihantar! Undian akan dimasukkan selepas semakan admin.'));
+      showMsg('🎉 ' + (r.message || 'Payment verification submitted! Votes will be credited upon admin confirmation.'));
       if (msgEl) msgEl.style.color = '#10b981';
       if ($('#ewalletRef')) $('#ewalletRef').value = '';
       if (fileInput) fileInput.value = '';
@@ -896,19 +938,19 @@ async function submitEwalletPayment() {
         location.reload();
       }, 3000);
     } else {
-      showMsg('⚠️ ' + (r.error || 'Gagal menghantar bayaran. Sila cuba lagi.'));
+      showMsg('⚠️ ' + (r.error || 'Failed to submit payment. Please try again.'));
       if (msgEl) msgEl.style.color = '#ef4444';
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+        btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
       }
     }
   } catch (err) {
-    showMsg('⚠️ Ralat: ' + err.message);
+    showMsg('⚠️ Error: ' + err.message);
     if (msgEl) msgEl.style.color = '#ef4444';
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `✅ SAYA TELAH PINDAH <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (HANTAR PENGESAHAN)`;
+      btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
     }
   }
 }

@@ -9,7 +9,7 @@ import {
   apiSingers, apiSingerById, apiSingerLookup, apiSingerDonations,
   apiCountries, apiCountriesByName,
   apiGetBattle, apiBattleVote, apiCompetitions,
-  apiPaymentMethods, apiPayStripe, apiPayPaypalOrder, apiPayPaypalCapture,
+  apiPaymentMethods, apiEwalletConfig, apiPayStripe, apiPayStatus, apiPayPaypalOrder, apiPayPaypalCapture,
   apiPayToyyibpay, apiPayManual, apiCryptoConfig, apiPayCrypto,
   apiToyyibpayCallback, paymentSuccess,
   apiYoutubeSearch, apiProxyImage, apiWikiBio, apiRecentVotes,
@@ -22,7 +22,15 @@ import { errorResponse } from './lib/helpers.js';
 function checkAdminAuth(request, env) {
   const url = new URL(request.url);
   const key = url.searchParams.get('key') || request.headers.get('x-admin-key');
-  return key && key === env.ADMIN_PASSWORD;
+  const expected = env.ADMIN_PASSWORD || '';
+  if (!key || !expected) return false;
+  // Constant-time comparison (timing-attack safe)
+  const a = new TextEncoder().encode(String(key));
+  const b = new TextEncoder().encode(expected);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
 }
 
 // ─── Route table ──────────────────────────────────────────────────────────
@@ -48,9 +56,11 @@ const routes = [
 
   // Payment methods
   ['GET',    '/api/payment-methods',             apiPaymentMethods],
+  ['GET',    '/api/ewallet-config',              apiEwalletConfig],
 
   // Payments
   ['POST',   '/api/pay/stripe',                  apiPayStripe],
+  ['GET',    '/api/pay/status',                  apiPayStatus],
   ['POST',   '/api/pay/paypal/order',            apiPayPaypalOrder],
   ['POST',   '/api/pay/paypal/capture',          apiPayPaypalCapture],
   ['POST',   '/api/pay/toyyibpay',               apiPayToyyibpay],

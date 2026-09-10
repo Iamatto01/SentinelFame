@@ -22,6 +22,8 @@ export function sanitizeSearch(raw) {
   return s.replace(/[<>;'`"]/g, '');
 }
 
+export const MIN_VOTES = 1;
+
 export function validatePaymentBody(body) {
   const singerId = parseInt(body.singerId, 10);
   const votes = parseInt(body.votes, 10);

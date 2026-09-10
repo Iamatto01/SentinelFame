@@ -100,7 +100,7 @@ function createSinger(name, country, genre) {
   const info = db.prepare(`
     INSERT INTO singers (name, country, genre, votes, revenue_cents)
     VALUES (?, ?, ?, 0, 0)
-  `).run(name, country || '', genre || '');
+  `).run(String(name), String(country || ''), String(genre || ''));
   return db.prepare(`SELECT * FROM singers WHERE id = ?`).get(info.lastInsertRowid);
 }
 
@@ -113,12 +113,25 @@ function addVotes(singerId, count, amountCents) {
 
 // ---------- Payments ----------
 function createPayment(p) {
+  const merged = {
+    voter_name: 'Anonymous', voter_message: '', currency: 'USD', reference: null, receipt_image: null,
+    status: 'pending', ...p
+  };
+  // Coerce to bindable primitives (better-sqlite3 rejects undefined/objects)
   const info = db.prepare(`
     INSERT INTO payments (singer_id, voter_name, voter_message, method, vote_count, amount_cents, currency, reference, receipt_image, status)
     VALUES (@singer_id, @voter_name, @voter_message, @method, @vote_count, @amount_cents, @currency, @reference, @receipt_image, @status)
   `).run({
-    voter_name: 'Anonymous', voter_message: '', currency: 'USD', reference: null, receipt_image: null,
-    status: 'pending', ...p
+    singer_id: parseInt(merged.singer_id, 10),
+    voter_name: String(merged.voter_name || 'Anonymous'),
+    voter_message: String(merged.voter_message || ''),
+    method: String(merged.method || 'manual'),
+    vote_count: parseInt(merged.vote_count, 10) || 0,
+    amount_cents: parseInt(merged.amount_cents, 10) || 0,
+    currency: String(merged.currency || 'USD'),
+    reference: merged.reference == null ? null : String(merged.reference),
+    receipt_image: merged.receipt_image == null ? null : String(merged.receipt_image),
+    status: String(merged.status || 'pending'),
   });
   return info.lastInsertRowid;
 }
@@ -131,12 +144,93 @@ function getPaymentByReference(ref) {
   return db.prepare(`SELECT * FROM payments WHERE reference = ?`).get(ref);
 }
 
+// ---------- Payment credit integrity (idempotent crediting) ----------
+db.exec(`
+CREATE TABLE IF NOT EXISTS payment_credit_context (
+  payment_id INTEGER PRIMARY KEY,
+  singer_id INTEGER NOT NULL,
+  vote_count INTEGER NOT NULL,
+  amount_cents INTEGER NOT NULL,
+  battle_event_id TEXT,
+  battle_singer_a INTEGER,
+  battle_singer_b INTEGER,
+  battle_side INTEGER
+);
+CREATE TABLE IF NOT EXISTS payment_credit_claims (
+  payment_id INTEGER PRIMARY KEY,
+  credited_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`);
+
+function savePaymentCreditContext(paymentId, ctx) {
+  db.prepare(`
+    INSERT OR IGNORE INTO payment_credit_context
+      (payment_id, singer_id, vote_count, amount_cents, battle_event_id, battle_singer_a, battle_singer_b, battle_side)
+    VALUES (@payment_id, @singer_id, @vote_count, @amount_cents, @battle_event_id, @battle_singer_a, @battle_singer_b, @battle_side)
+  `).run({
+    payment_id: parseInt(paymentId, 10),
+    singer_id: parseInt(ctx.singerId, 10),
+    vote_count: parseInt(ctx.voteCount, 10) || 0,
+    amount_cents: parseInt(ctx.amountCents, 10) || 0,
+    battle_event_id: ctx.battleEventId ? String(ctx.battleEventId).slice(0, 60) : null,
+    battle_singer_a: ctx.battleAId != null ? parseInt(ctx.battleAId, 10) : null,
+    battle_singer_b: ctx.battleBId != null ? parseInt(ctx.battleBId, 10) : null,
+    battle_side: ctx.battleSide != null ? parseInt(ctx.battleSide, 10) : null,
+  });
+}
+
+function getPaymentCreditContext(paymentId) {
+  return db.prepare(`SELECT * FROM payment_credit_context WHERE payment_id = ?`).get(parseInt(paymentId, 10));
+}
+
+/**
+ * Atomically credit a payment exactly once.
+ * better-sqlite3 transactions are synchronous and serialized on the Node
+ * event loop, so the INSERT into payment_credit_claims (PK on payment_id)
+ * guarantees webhook + polling fallbacks can never double-credit.
+ */
 function completePayment(id) {
-  const p = getPaymentById(id);
-  if (!p || p.status === 'completed') return p;
-  db.prepare(`UPDATE payments SET status = 'completed' WHERE id = ?`).run(id);
-  addVotes(p.singer_id, p.vote_count, p.amount_cents);
-  return getPaymentById(id);
+  const pid = parseInt(id, 10);
+  if (isNaN(pid) || pid < 1) return null;
+
+  const p = getPaymentById(pid);
+  if (!p) return null;
+  if (p.status === 'completed') return p;
+
+  const ctx = getPaymentCreditContext(pid);
+  const singerId = ctx ? ctx.singer_id : p.singer_id;
+  const voteCount = ctx ? ctx.vote_count : p.vote_count;
+  const amountCents = ctx ? ctx.amount_cents : p.amount_cents;
+
+  const credit = db.transaction(() => {
+    // Idempotency guard: PK violation means already credited — abort silently.
+    db.prepare(`INSERT INTO payment_credit_claims (payment_id) VALUES (?)`).run(pid);
+    db.prepare(`UPDATE payments SET status = 'completed' WHERE id = ?`).run(pid);
+    db.prepare(`UPDATE singers SET votes = votes + ?, revenue_cents = revenue_cents + ? WHERE id = ?`)
+      .run(voteCount, amountCents, singerId);
+
+    if (ctx && ctx.battle_event_id && ctx.battle_singer_a != null && ctx.battle_singer_b != null) {
+      const [lo, hi] = [+ctx.battle_singer_a < +ctx.battle_singer_b]
+        ? [+ctx.battle_singer_a, +ctx.battle_singer_b]
+        : [+ctx.battle_singer_b, +ctx.battle_singer_a];
+      const col = (+ctx.battle_side === lo) ? 'votes_a' : 'votes_b';
+      db.prepare(`INSERT OR IGNORE INTO battles (event_id, singer_a, singer_b) VALUES (?, ?, ?)`)
+        .run(ctx.battle_event_id, lo, hi);
+      db.prepare(`UPDATE battles SET ${col} = ${col} + ? WHERE event_id = ? AND singer_a = ? AND singer_b = ?`)
+        .run(voteCount, ctx.battle_event_id, lo, hi);
+    }
+  });
+
+  try {
+    credit();
+  } catch (e) {
+    if (String(e?.message || e).match(/UNIQUE|PRIMARY KEY/i)) {
+      // Another path already credited this payment — idempotent no-op.
+      return getPaymentById(pid);
+    }
+    throw e;
+  }
+  return getPaymentById(pid);
 }
 
 function listPayments(status) {
@@ -256,5 +350,6 @@ module.exports = {
   getCountries, getSingersByCountry,
   getBattle, createBattle, voteBattle, listBattlesByEvent,
   createPayment, getPaymentById, getPaymentByReference, completePayment, listPayments,
+  savePaymentCreditContext, getPaymentCreditContext,
   createAnimation, getAnimationById, updateAnimationStatus, listAnimations
 };

@@ -5,14 +5,18 @@ account_id = "41c99f9257999e43123d7a3f25fe494b"
 
 # ─── Custom Domains ────────────────────────────────────────────────────────
 routes = [
-  { pattern = "hall-of-fame.sentinelai.studio", custom_domain = true },
-  { pattern = "halloffame.sentinelai.studio", custom_domain = true }
+  { pattern = "hall-of-fame.sentinelai.studio", custom_domain = true }
 ]
 
 # ─── Static Assets (serves public/ at the root) ───────────────────────────
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+# NOTE: Cron triggers (social bot) removed from production.
+# The bot queried status='approved' which is never produced (completePayment
+# sets 'completed'), and it had no idempotency — it would repost duplicates.
+# Re-enable only after social-bot.js is rewritten with a posted-log table.
 
 # ─── D1 Database (SQLite at edge) ─────────────────────────────────────────
 [[d1_databases]]
@@ -27,10 +31,15 @@ database_id = "57c3b40b-f655-4376-b63c-810b8c011368"
 
 # ─── Environment Variables (non-secret) ───────────────────────────────────
 [vars]
-CURRENCY = "usd"
-STRIPE_PUBLISHABLE_KEY = ""
+CURRENCY = "myr"
+PRICE_PER_VOTE_CENTS = "100"
+STRIPE_PUBLISHABLE_KEY = "pk_live_51UDIosPOFV3P1AxEq1RtmkvfViLCMdOScZ6MM37SA2HGc3tyygTFLgyF9VAm6ENV0mQHgmaBVeQLBDG3maMaiDU800sO2j2SCx"
 PAYPAL_CLIENT_ID = ""
 COUNTRY_DEFAULT = "Global"
+EWALLET_RECIPIENT_NAME = "MUHAMMAD SAIFUDIN BIN MO"
+EWALLET_TNG_NUMBER = "012-3456789"
+EWALLET_SHOPEEPAY_NAME = "MUHAMMAD SAIFUDIN BIN MO"
+EWALLET_QR_IMAGE = "/images/duitnow-qr-real.jpg"
 
 # ─── Secret vars (set via `wrangler secret put`) ─────────────────────────
 #   STRIPE_SECRET_KEY

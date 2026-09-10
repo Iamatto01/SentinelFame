@@ -103,12 +103,87 @@ export async function getPaymentByReference(env, ref) {
   return await env.DB.prepare(`SELECT * FROM payments WHERE reference = ?`).bind(ref).first();
 }
 
+/**
+ * Persist the credit context (battle info) for a payment so the credit
+ * transaction can be replayed safely if a later step fails.
+ */
+export async function savePaymentCreditContext(env, paymentId, ctx) {
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO payment_credit_context
+      (payment_id, singer_id, vote_count, amount_cents, battle_event_id, battle_singer_a, battle_singer_b, battle_side)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+  `).bind(
+    parseInt(paymentId, 10),
+    parseInt(ctx.singerId, 10),
+    parseInt(ctx.voteCount, 10) || 0,
+    parseInt(ctx.amountCents, 10) || 0,
+    ctx.battleEventId ? String(ctx.battleEventId).slice(0, 60) : null,
+    ctx.battleAId != null ? parseInt(ctx.battleAId, 10) : null,
+    ctx.battleBId != null ? parseInt(ctx.battleBId, 10) : null,
+    ctx.battleSide != null ? parseInt(ctx.battleSide, 10) : null
+  ).run();
+}
+
+export async function getPaymentCreditContext(env, paymentId) {
+  return await env.DB.prepare(`SELECT * FROM payment_credit_context WHERE payment_id = ?`).bind(parseInt(paymentId, 10)).first();
+}
+
+/**
+ * Atomically credit a payment exactly once.
+ *
+ * D1's batch() runs statements inside a single transaction (transactionSync in
+ * miniflare; an implicit transaction on the remote service). The INSERT into
+ * payment_credit_claims has a PRIMARY KEY on payment_id, so if two concurrent
+ * webhook/polling attempts race, exactly one INSERT succeeds and the other
+ * fails the whole batch — the loser re-reads the payment and sees 'completed'.
+ *
+ * Returns the updated payment row, or null when the payment does not exist.
+ */
 export async function completePayment(env, id) {
-  const p = await getPaymentById(env, id);
-  if (!p || p.status === 'completed') return p;
-  await env.DB.prepare(`UPDATE payments SET status = 'completed' WHERE id = ?`).bind(id).run();
-  await addVotes(env, p.singer_id, p.vote_count, p.amount_cents);
-  return await getPaymentById(env, id);
+  const pid = parseInt(id, 10);
+  if (isNaN(pid) || pid < 1) return null;
+
+  const p = await getPaymentById(env, pid);
+  if (!p) return null;
+  if (p.status === 'completed') return p;
+
+  const ctx = await getPaymentCreditContext(env, pid);
+  const singerId = ctx ? ctx.singer_id : p.singer_id;
+  const voteCount = ctx ? ctx.vote_count : p.vote_count;
+  const amountCents = ctx ? ctx.amount_cents : p.amount_cents;
+
+  const statements = [
+    env.DB.prepare(`INSERT INTO payment_credit_claims (payment_id) VALUES (?)`).bind(pid),
+    env.DB.prepare(`UPDATE payments SET status = 'completed' WHERE id = ?`).bind(pid),
+    env.DB.prepare(`UPDATE singers SET votes = votes + ?, revenue_cents = revenue_cents + ? WHERE id = ?`)
+      .bind(voteCount, amountCents, singerId),
+  ];
+
+  // Credit the battle tally in the same transaction when battle context exists.
+  if (ctx && ctx.battle_event_id && ctx.battle_singer_a != null && ctx.battle_singer_b != null) {
+    const [lo, hi] = [+ctx.battle_singer_a < +ctx.battle_singer_b]
+      ? [+ctx.battle_singer_a, +ctx.battle_singer_b]
+      : [+ctx.battle_singer_b, +ctx.battle_singer_a];
+    const col = (+ctx.battle_side === lo) ? 'votes_a' : 'votes_b';
+    statements.push(
+      env.DB.prepare(`INSERT OR IGNORE INTO battles (event_id, singer_a, singer_b) VALUES (?, ?, ?)`)
+        .bind(ctx.battle_event_id, lo, hi),
+      env.DB.prepare(`UPDATE battles SET ${col} = ${col} + ? WHERE event_id = ? AND singer_a = ? AND singer_b = ?`)
+        .bind(voteCount, ctx.battle_event_id, lo, hi)
+    );
+  }
+
+  try {
+    await env.DB.batch(statements);
+  } catch (e) {
+    // A UNIQUE violation on payment_credit_claims means another request already
+    // credited this payment — that is the idempotency guard working as intended.
+    if (String(e?.message || e).match(/UNIQUE|PRIMARY KEY|already exists/i)) {
+      return await getPaymentById(env, pid);
+    }
+    throw e;
+  }
+  return await getPaymentById(env, pid);
 }
 
 export async function listPayments(env, status) {
@@ -130,13 +205,13 @@ export async function rejectPayment(env, id) {
 
 // ─── Battles ─────────────────────────────────────────────────────────────
 export async function getBattle(env, eventId, aId, bId) {
-  const [lo, hi] = [+aId < +bId ? [+aId, +bId] : [+bId, +aId]];
+  const [lo, hi] = (+aId < +bId) ? [+aId, +bId] : [+bId, +aId];
   return await env.DB.prepare(`SELECT * FROM battles WHERE event_id = ? AND singer_a = ? AND singer_b = ?`)
     .bind(String(eventId).slice(0, 60), lo, hi).first();
 }
 
 export async function createBattle(env, eventId, aId, bId) {
-  const [lo, hi] = [+aId < +bId ? [+aId, +bId] : [+bId, +aId]];
+  const [lo, hi] = (+aId < +bId) ? [+aId, +bId] : [+bId, +aId];
   await env.DB.prepare(`INSERT OR IGNORE INTO battles (event_id, singer_a, singer_b) VALUES (?, ?, ?)`)
     .bind(String(eventId).slice(0, 60), lo, hi).run();
   return await getBattle(env, eventId, lo, hi);

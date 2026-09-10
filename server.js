@@ -9,7 +9,7 @@ const { seedSingers } = require('./seed');
 const { createStripeSession, verifyAndCompleteSession, stripeWebhook } = require('./payments/stripe');
 
 const app = express();
-app.enable('trust proxy');
+app.set('trust proxy', 1);
 const rateLimit = require('express-rate-limit');
 
 const generalLimiter = rateLimit({

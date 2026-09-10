@@ -839,6 +839,27 @@ main {
   background: #fff8e8; border-radius: 4px;
 }
 
+/* Custom vote button + input box */
+.vote-picker .custom-vote-btn {
+  flex: 0 0 auto; min-width: 84px; padding: 10px 8px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: .78rem;
+  border: 2px dashed var(--vermilion); color: var(--vermilion);
+  background: #fff3e0; border-radius: 4px; cursor: pointer;
+  transition: all .15s;
+}
+.vote-picker .custom-vote-btn:hover,
+.vote-picker .custom-vote-btn.active {
+  background: var(--vermilion); color: #fff; border-style: solid;
+}
+.custom-vote-box {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px; margin-top: 8px;
+  background: #fffdf7; border: 2px dashed var(--ink); border-radius: 4px;
+}
+.custom-vote-box.hidden { display: none; }
+.custom-vote-row { display: flex; gap: 8px; }
+.custom-vote-row .vote-input { flex: 1; }
+
 /* Total line */
 .total-line {
   font-family: 'Fraunces', serif; font-weight: 900;

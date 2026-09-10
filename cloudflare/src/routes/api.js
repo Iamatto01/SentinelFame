@@ -6,13 +6,13 @@
 import {
   getSingers, getSingerById, getSingerByName, createSinger, addVotes,
   getCountries, getSingersByCountry,
-  getBattle, createBattle, voteBattle, listAllBattles,
+  getBattle, createBattle, listAllBattles,
   createPayment, getPaymentById, getPaymentByReference, completePayment, listPayments,
   createAnimation, getAnimationById, updateAnimationStatus, listAnimations,
   getDonationsBySinger, getRecentVotes,
 } from '../lib/db.js';
 import {
-  sanitizeName, validateName, sanitizeSearch, validatePaymentBody,
+  sanitizeName, validateName, sanitizeSearch, validatePaymentBody, MIN_VOTES,
   json, errorResponse, getOrigin,
 } from '../lib/helpers.js';
 import { createStripeSession, verifyAndComplete } from '../payments/stripe.js';
@@ -147,12 +147,36 @@ export async function apiCompetitions(env) {
 
 // ─── Payment Methods ──────────────────────────────────────────────────────
 export async function apiPaymentMethods(env) {
+  const currency = (env.CURRENCY || 'myr').toLowerCase();
+  const unitPrice = (parseInt(env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100;
   return json({
     stripe: !!env.STRIPE_SECRET_KEY,
-    paypal: !!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
-    toyyibpay: !!env.TOYYIBPAY_SECRET_KEY,
-    crypto: !!env.CRYPTO_WALLET,
+    stripe_qr: !!env.STRIPE_SECRET_KEY,
+    ewallet: true,
+    grabpay: !!env.STRIPE_SECRET_KEY,
+    tng: true,
+    shopeepay: true,
+    currency: currency,
+    currency_symbol: currency === 'myr' ? 'RM ' : '$',
+    price_per_vote: unitPrice,
+    paypal: false,
+    toyyibpay: false,
+    crypto: false,
     manual: true,
+  });
+}
+
+export async function apiEwalletConfig(env) {
+  const currency = (env.CURRENCY || 'myr').toLowerCase();
+  const unitPrice = (parseInt(env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100;
+  return json({
+    recipientName: env.EWALLET_RECIPIENT_NAME || 'MUHAMMAD SAIFUDIN BIN MO',
+    tngNumber: env.EWALLET_TNG_NUMBER || '012-3456789',
+    shopeePayName: env.EWALLET_SHOPEEPAY_NAME || 'MUHAMMAD SAIFUDIN BIN MO',
+    qrImage: env.EWALLET_QR_IMAGE || '/images/duitnow-qr-real.jpg',
+    currency: currency,
+    currency_symbol: currency === 'myr' ? 'RM ' : '$',
+    price_per_vote: unitPrice,
   });
 }
 
@@ -162,9 +186,29 @@ export async function apiPayStripe(env, request) {
   const v = validatePaymentBody(body);
   if (v.error) return errorResponse(v.error, 400);
   const session = await createStripeSession(env, {
-    singerId: v.singerId, votes: v.votes, voterName: v.voterName, voterMessage: v.voterMessage, request,
+    singerId: v.singerId,
+    votes: v.votes,
+    voterName: v.voterName,
+    voterMessage: v.voterMessage,
+    preferredMethod: body.preferredMethod,
+    request,
   });
-  return json({ url: session.url });
+  return json({ url: session.url, sessionId: session.id });
+}
+
+export async function apiPayStatus(env, request) {
+  const url = new URL(request.url);
+  const sessionId = url.searchParams.get('session_id');
+  if (!sessionId) return errorResponse('Missing session_id', 400);
+  try {
+    const session = await verifyAndComplete(env, sessionId);
+    if (session && session.payment_status === 'paid') {
+      return json({ paid: true, status: 'paid' });
+    }
+    return json({ paid: false, status: session?.payment_status || 'unpaid' });
+  } catch (e) {
+    return json({ paid: false, error: e.message });
+  }
 }
 
 export async function apiPayPaypalOrder(env, request) {
@@ -201,7 +245,7 @@ export async function apiPayManual(env, request) {
   const reference = sanitizeName(formData.get('reference') || '');
 
   if (isNaN(singerId) || singerId < 1) return errorResponse('Invalid singer ID', 400);
-  if (isNaN(votes) || votes < 1 || votes > 10000) return errorResponse('Invalid vote count (1-10000)', 400);
+  if (isNaN(votes) || votes < MIN_VOTES || votes > 10000) return errorResponse(`Invalid vote count (${MIN_VOTES}-10000)`, 400);
 
   let receiptPath = null;
   const receipt = formData.get('receipt');
@@ -257,15 +301,27 @@ export async function apiPayCrypto(env, request) {
     reference: `crypto-${Date.now()}`,
     status: 'pending',
   });
-  await completePayment(env, id); // auto-complete for demo
-  return json({ ok: true, paymentId: id, message: 'Crypto payment confirmed! Votes added.' });
+  // SECURITY: crypto payments stay PENDING until the admin verifies the
+  // on-chain transaction. Never auto-complete — that granted free votes.
+  return json({ ok: true, paymentId: id, message: 'Payment recorded. Send the exact amount, then your votes will be verified and added after admin approval.' });
 }
 
 // ─── Callbacks / Success ──────────────────────────────────────────────────
 export async function apiToyyibpayCallback(env, request, params, query) {
   const { ref, status } = query;
-  const payment = await getPaymentByReference(env, ref);
-  if (payment && status === '1') await completePayment(env, payment.id);
+  // SECURITY: never trust GET query params to complete a payment.
+  // ToyyibPay posts the real callback with a hash signature; without
+  // verifying it we cannot trust status=1. Mark as "callback received"
+  // and let the admin (or a signed server-to-server verify call) confirm.
+  if (ref) {
+    const payment = await getPaymentByReference(env, ref);
+    if (payment && payment.status === 'pending' && status === '1') {
+      // Record that ToyyibPay reported success, but require admin verification
+      // unless TOYYIBPAY_SECRET is configured and hash validation is implemented.
+      // For now: leave pending — admin approves in dashboard.
+      console.log(`ToyyibPay callback received for payment ${payment.id} (status=${status}) — awaiting admin verification`);
+    }
+  }
   return Response.redirect(`${getOrigin(request)}/thank-you.html?ref=${ref || ''}`, 302);
 }
 
@@ -296,15 +352,41 @@ export async function apiYoutubeSearch(env, request, params, query) {
 }
 
 // ─── Image proxy ───────────────────────────────────────────────────────────
+// SSRF protection: only proxy allowlisted image hosts.
+const ALLOWED_IMAGE_DOMAINS = new Set([
+  'upload.wikimedia.org',
+  'commons.wikimedia.org',
+  'img.youtube.com',
+  'i.ytimg.com',
+  'yt3.ggpht.com',
+  'yt3.googleusercontent.com',
+  'lastfm.freetls.fastly.net',
+  'lastfm-img2.akamaized.net',
+  'user-images.githubusercontent.com',
+  'avatars.githubusercontent.com',
+  'cdn.sstatic.net',
+  'i.scdn.co',   // Spotify
+  'pbs.twimg.com',
+  'images.unsplash.com',
+]);
+
 export async function apiProxyImage(env, request, params, query) {
   const url = String(query.url || '');
   if (!/^https?:\/\//.test(url)) return new Response(null, { status: 400 });
+
+  // SSRF guard: parse the host and check the allowlist
+  let host;
+  try { host = new URL(url).hostname.toLowerCase(); } catch { return new Response(null, { status: 400 }); }
+  if (!ALLOWED_IMAGE_DOMAINS.has(host)) return new Response(null, { status: 403 });
+
   try {
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
     if (!r.ok) return new Response(null, { status: r.status });
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.startsWith('image/')) return new Response(null, { status: 415 });
     return new Response(r.body, {
       headers: {
-        'Content-Type': r.headers.get('content-type') || 'image/jpeg',
+        'Content-Type': ct,
         'Cache-Control': 'public, max-age=86400',
       },
     });

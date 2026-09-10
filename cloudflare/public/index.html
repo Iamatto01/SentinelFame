@@ -141,145 +141,178 @@
         
         </div>
         <div class="modal-vote-section">
-          <label class="vote-label" id="voteRateLabel">BILANGAN UNDIAN (1 UNDIAN = RM 1.00)</label>
+          <label class="vote-label" id="voteRateLabel">CHOOSE VOTE PACKAGE (1 VOTE = RM 1.00)</label>
           <div class="vote-picker">
-            <button onclick="setVotes(1)" data-v="1" class="active">1</button>
-            <button onclick="setVotes(5)" data-v="5">5</button>
-            <button onclick="setVotes(10)" data-v="10">10</button>
-            <button onclick="setVotes(50)" data-v="50">50 ★</button>
-           </div>
-          <p class="total-line">JUMLAH: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
-             spellcheck="false" title="Taip sebarang jumlah">1.00</span></p>
-          <label class="vote-label">NAMA ANDA (PILIHAN)</label>
-          <input type="text" id="voterName" class="vote-input" placeholder="Hamba Allah / Peminat Setia">
-          <label class="vote-label">💌 MESEJ SOKONGAN KEPADA <span id="msgArtistName">ARTIS</span> (PILIHAN)</label>
-          <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
-                    placeholder="Tulis ucapan atau sokongan anda kepada artis…"></textarea>
-          <label class="vote-label">PILIH KAEDAH PEMBAYARAN</label>
-          <div class="pay-tabs">
-            <button class="pay-tab active" data-tab="ewallet" onclick="switchPayTab('ewallet')">📲 E-WALLET (TNG / SHOPEE / GRAB)</button>
-            <button class="pay-tab" data-tab="stripe" onclick="switchPayTab('stripe')">💳 KAD BANK</button>
-            <button class="pay-tab" data-tab="stripeqr" onclick="switchPayTab('stripeqr')">📱 STRIPE QR</button>
-            <button class="pay-tab" data-tab="toyyibpay" onclick="switchPayTab('toyyibpay')">🏦 FPX (MY)</button>
-            <button class="pay-tab" data-tab="crypto" onclick="switchPayTab('crypto')">₿ CRYPTO</button>
+            <button onclick="setVotes(2)" data-v="2" class="active">2 Votes</button>
+            <button onclick="setVotes(5)" data-v="5">5 Votes 🔥</button>
+            <button onclick="setVotes(10)" data-v="10">10 Votes ⚡</button>
+            <button onclick="setVotes(50)" data-v="50">50 Votes 👑</button>
+            <button type="button" class="custom-vote-btn" id="customVoteBtn" onclick="openCustomVote()">✏️ Custom</button>
           </div>
+          <div id="customVoteBox" class="custom-vote-box hidden">
+            <label class="vote-label" for="customVoteInput">ENTER CUSTOM VOTE COUNT (1 VOTE = <span class="cur-sym">RM </span>1.00 · MIN. 2 VOTES)</label>
+            <div class="custom-vote-row">
+              <input type="number" id="customVoteInput" class="vote-input" min="2" max="10000" step="1" value="2" inputmode="numeric">
+              <button type="button" class="pay-btn" style="width:auto;padding:10px 18px;" onclick="applyCustomVote()">SET ✓</button>
+            </div>
+          </div>
+          <div class="vote-perks" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;padding:8px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;font-size:0.75rem;color:#fde68a;">
+            <span style="font-size:1.1rem;">🌟</span>
+            <span>Your name & shoutout message will be broadcast live on the <b>Official Donor Feed</b>!</span>
+          </div>
+          <p class="total-line">TOTAL AMOUNT: <span id="currencyPrefix">RM </span><span id="totalAmt" contenteditable="true" inputmode="decimal"
+             spellcheck="false" title="Type any amount">2.00</span></p>
+          <label class="vote-label">YOUR NAME / NICKNAME (OPTIONAL)</label>
+          <input type="text" id="voterName" class="vote-input" placeholder="e.g., #1 Fan / Secret Admirer">
+          <label class="vote-label">💌 SHOUTOUT MESSAGE TO <span id="msgArtistName">ARTIST</span> (OPTIONAL)</label>
+          <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
+                    placeholder="Write an encouraging message or cheering shoutout…"></textarea>
+          
+          <label class="vote-label">CHOOSE PAYMENT METHOD</label>
+          <div class="pay-tabs">
+            <button type="button" class="pay-tab" data-tab="ewallet" onclick="switchPayTab('ewallet')">
+              <span class="pt-icon">📲</span>
+              <span class="pt-title">1. DuitNow QR</span>
+              <span class="pt-sub">TNG · ShopeePay</span>
+            </button>
+            <button type="button" class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">
+              <span class="pt-icon">💳</span>
+              <span class="pt-title">2. Card / Apple Pay</span>
+              <span class="pt-sub">Visa · MC · Apple Pay</span>
+            </button>
+            <button type="button" class="pay-tab" data-tab="stripeqr" onclick="switchPayTab('stripeqr')">
+              <span class="pt-icon">📱</span>
+              <span class="pt-title">3. QR for Stripe</span>
+              <span class="pt-sub">Scan to Pay</span>
+            </button>
+          </div>
+
           <div class="pay-panels">
-            <!-- EWALLET PANEL (TNG, SHOPEEPAY, GRABPAY, DUITNOW) -->
-            <div id="payPanelEwallet" class="pay-panel active">
+            <!-- 1. EWALLET / DUITNOW QR PANEL -->
+            <div id="payPanelEwallet" class="pay-panel">
               <div class="ewallet-subtabs" style="display:flex;gap:6px;margin-bottom:10px;">
-                <button type="button" class="pay-tab active" onclick="switchEwalletSubtab('tng')" id="subtabTng" style="flex:1;padding:8px 4px;font-size:0.75rem;border-radius:6px;">
+                <button type="button" class="ew-subtab active" onclick="switchEwalletSubtab('tng')" id="subtabTng">
                   Touch 'n Go
                 </button>
-                <button type="button" class="pay-tab" onclick="switchEwalletSubtab('shopeepay')" id="subtabShopee" style="flex:1;padding:8px 4px;font-size:0.75rem;border-radius:6px;">
+                <button type="button" class="ew-subtab" onclick="switchEwalletSubtab('shopeepay')" id="subtabShopee">
                   ShopeePay
                 </button>
-                <button type="button" class="pay-tab" onclick="switchEwalletSubtab('duitnow')" id="subtabDuitnow" style="flex:1;padding:8px 4px;font-size:0.75rem;border-radius:6px;">
+                <button type="button" class="ew-subtab" onclick="switchEwalletSubtab('duitnow')" id="subtabDuitnow">
                   DuitNow QR
                 </button>
-                <button type="button" class="pay-tab" onclick="switchEwalletSubtab('grabpay')" id="subtabGrab" style="flex:1;padding:8px 4px;font-size:0.75rem;border-radius:6px;">
+                <button type="button" class="ew-subtab" onclick="switchEwalletSubtab('grabpay')" id="subtabGrab">
                   GrabPay ⚡
                 </button>
               </div>
 
               <!-- VIEW 1: GRABPAY STRIPE DIRECT -->
               <div id="ewalletViewGrab" style="display:none;text-align:center;padding:12px 0;">
-                <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Bayar serta-merta menggunakan akaun <b>GrabPay e-Wallet</b> melalui gerbang Stripe:</p>
-                <button class="pay-btn stripe" style="background:#00b140;border-color:#00b140;box-shadow:0 4px 15px rgba(0,177,64,0.35);padding:14px;" onclick="payStripe('grabpay')">
-                  🟢 BAYAR <span class="cur-sym">RM </span><span id="grabpayAmtBtn">2.00</span> GUNA GRABPAY (STRIPE)
+                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:12px;">Pay instantly with your <b>GrabPay e-Wallet</b> account via Stripe:</p>
+                <button class="pay-btn stripe" style="background:#00b140;border-color:#00b140;box-shadow:3px 3px 0 var(--ink);padding:14px;color:#fff;font-weight:800;border-radius:6px;" onclick="payStripe('grabpay')">
+                  🟢 PAY <span class="cur-sym">RM </span><span id="grabpayAmtBtn">1.00</span> WITH GRABPAY
                 </button>
-                <p style="font-size:0.75rem;color:#64748b;margin-top:10px;">⚡ Undian disahkan dan dikreditkan secara automatik ke dalam carta!</p>
+                <p style="font-size:0.75rem;color:var(--ink-soft);margin-top:10px;">⚡ Votes confirmed and credited automatically to the leaderboard!</p>
               </div>
 
               <!-- VIEW 2: TNG & SHOPEEPAY & DUITNOW QR -->
               <div id="ewalletViewQr" style="text-align:center;">
-                <div style="background:#ffffff;padding:8px;border-radius:16px;display:inline-block;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-bottom:8px;">
-                  <img id="ewalletQrImg" src="/images/duitnow-qr.svg" alt="Kod QR DuitNow" style="width:190px;height:auto;display:block;margin:0 auto;border-radius:8px;" />
+                <div style="background:#ffffff;padding:8px;border-radius:12px;display:inline-block;box-shadow:3px 3px 0 var(--ink);border:2px solid var(--ink);margin-bottom:8px;">
+                  <img id="ewalletQrImg" src="/images/duitnow-qr-real.jpg" alt="DuitNow QR Code" style="width:190px;height:auto;display:block;margin:0 auto;border-radius:8px;" />
                 </div>
-                <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;margin-bottom:10px;text-align:left;font-size:0.76rem;">
+                <div style="background:#fffdf7;border:2px solid var(--ink);border-radius:6px;padding:8px 12px;margin-bottom:10px;text-align:left;font-size:0.76rem;box-shadow:2px 2px 0 var(--ink);">
                   <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                    <span style="color:#94a3b8;">Akaun Penerima:</span>
-                    <strong id="ewalletRecipient" style="color:#f8fafc;">Sentinel Fame Official</strong>
+                    <span style="color:var(--ink-soft);">Recipient:</span>
+                    <strong id="ewalletRecipient" style="color:var(--ink);">MUHAMMAD SAIFUDIN BIN MO</strong>
                   </div>
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-                    <span style="color:#94a3b8;"><span id="ewalletIdLabel">Touch 'n Go / DuitNow:</span></span>
+                    <span style="color:var(--ink-soft);"><span id="ewalletIdLabel">Touch 'n Go / DuitNow:</span></span>
                     <div style="display:flex;gap:6px;align-items:center;">
-                      <code id="ewalletNumber" style="background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:4px;color:#38bdf8;font-weight:700;">012-3456789</code>
-                      <button type="button" class="copy-btn" style="padding:2px 8px;font-size:0.68rem;" onclick="copyEwalletNumber()">📋 Salin</button>
+                      <code id="ewalletNumber" style="background:#f5f0e6;padding:2px 6px;border-radius:4px;color:var(--vermilion);font-weight:700;">012-3456789</code>
+                      <button type="button" class="copy-btn" style="padding:2px 8px;font-size:0.68rem;" onclick="copyEwalletNumber()">📋 Copy</button>
                     </div>
                   </div>
                   <div style="display:flex;justify-content:space-between;">
-                    <span style="color:#94a3b8;">Jumlah Pindahan:</span>
-                    <strong style="color:#4ade80;"><span class="cur-sym">RM </span><span id="ewalletAmtSync">2.00</span> (<span id="ewalletVotesSync">2</span> Undian)</strong>
+                    <span style="color:var(--ink-soft);">Transfer Amount:</span>
+                    <strong style="color:#059669;"><span class="cur-sym">RM </span><span id="ewalletAmtSync">1.00</span> (<span id="ewalletVotesSync">1</span> Vote)</strong>
                   </div>
                 </div>
 
                 <!-- SUBMIT CONFIRMATION FORM -->
-                <div style="text-align:left;background:rgba(255,255,255,0.02);border-radius:10px;padding:10px;border:1px dashed rgba(255,255,255,0.15);">
-                  <label style="font-size:0.72rem;color:#cbd5e1;font-weight:700;display:block;margin-bottom:4px;">
-                    NO. RUJUKAN TRANSAKSI / REF NO (WAJIB)
+                <div style="text-align:left;background:#fffdf7;border-radius:6px;padding:10px;border:2px dashed var(--ink);">
+                  <label style="font-size:0.72rem;color:var(--ink);font-weight:700;display:block;margin-bottom:4px;">
+                    TRANSACTION / REFERENCE NO. (REQUIRED)
                   </label>
-                  <input type="text" id="ewalletRef" class="vote-input" placeholder="Contoh: TNG-89234892 atau Ref Bank" style="margin-bottom:8px;font-size:0.8rem;padding:8px 10px;">
+                  <input type="text" id="ewalletRef" class="vote-input" placeholder="e.g., TNG-89234892 or Bank Ref" style="margin-bottom:8px;font-size:0.8rem;padding:8px 10px;">
                   
-                  <label style="font-size:0.72rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">
-                    RESIT / TANGKAP LAYAR (PILIHAN)
+                  <label style="font-size:0.72rem;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:4px;">
+                    PAYMENT RECEIPT / SCREENSHOT (OPTIONAL)
                   </label>
-                  <input type="file" id="ewalletReceipt" accept="image/*" style="font-size:0.72rem;color:#94a3b8;margin-bottom:10px;width:100%;">
+                  <input type="file" id="ewalletReceipt" accept="image/*" style="font-size:0.72rem;color:var(--ink-soft);margin-bottom:10px;width:100%;">
 
-                  <button type="button" id="btnSubmitEwallet" class="pay-btn" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);padding:10px;" onclick="submitEwalletPayment()">
-                    ✅ SAYA TELAH PINDAH <span class="cur-sym">RM </span><span id="ewalletBtnAmt">2.00</span> (HANTAR PENGESAHAN)
+                  <button type="button" id="btnSubmitEwallet" class="pay-btn" style="background:var(--ink);color:#fffdf7;font-weight:800;padding:10px;border:none;border-radius:6px;box-shadow:3px 3px 0 rgba(0,0,0,.2);cursor:pointer;" onclick="submitEwalletPayment()">
+                    ✅ I HAVE TRANSFERRED <span class="cur-sym">RM </span><span id="ewalletBtnAmt">1.00</span> (SUBMIT PROOF)
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- STRIPE CARD PANEL -->
-            <div id="payPanelStripe" class="pay-panel">
-               <button class="pay-btn stripe" onclick="payStripe('card')">💳 BAYAR <span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span> GUNA STRIPE CARD</button>
-            </div>
-            <!-- STRIPE QR PANEL -->
-            <div id="payPanelStripeqr" class="pay-panel">
-               <div id="qrInitialState" style="text-align:center;padding:8px 0;">
-                 <button class="pay-btn stripe" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 15px rgba(2,132,199,0.35);" onclick="payStripe('qr')">
-                   ⚡ PAPARKAN KOD STRIPE QR (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">2.00</span>)
-                 </button>
-                 <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;text-align:center;">✨ Imbas terus dengan telefon pintar guna GrabPay / DuitNow / Kad Bank</p>
-               </div>
-               
-               <div id="qrActiveBox" style="display:none;text-align:center;padding:8px 0;">
-                 <div style="background:#ffffff;padding:12px;border-radius:18px;display:inline-block;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
-                   <img id="qrCodeImage" src="" alt="Kod QR Stripe" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:8px;" />
-                 </div>
-                 <p style="font-size:0.82rem;color:#38bdf8;font-weight:700;margin-top:10px;">
-                   📲 Halakan kamera telefon atau aplikasi e-Wallet anda ke kod QR di atas
-                 </p>
-                 <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
-                   <a id="qrDirectLink" href="#" target="_blank" class="pay-btn stripe" style="font-size:0.75rem;padding:6px 14px;background:#334155;text-decoration:none;display:inline-block;width:auto;">
-                     🔗 Buka di Tab Baharu
-                   </a>
-                   <button onclick="resetQRState()" class="pay-btn" style="font-size:0.75rem;padding:6px 14px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;cursor:pointer;">
-                     ↺ Tukar Jumlah
-                   </button>
-                 </div>
-                 <div id="qrPollingStatus" style="margin-top:10px;font-size:0.78rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:6px;">
-                   <span class="pulse" style="color:#38bdf8;">●</span> Menunggu bayaran daripada telefon anda...
-                 </div>
-               </div>
-            </div>
-            <!-- TOYYIBPAY FPX PANEL -->
-            <div id="payPanelToyyibpay" class="pay-panel">
-               <button class="pay-btn stripe" style="background:#0f8458" onclick="payToyyibpay()">🏦 BAYAR <span class="cur-sym">RM </span><span id="toyyibAmtBtn">2.00</span> VIA FPX ONLINE BANKING</button>
-            </div>
-            <!-- CRYPTO PANEL -->
-            <div id="payPanelCrypto" class="pay-panel">
-              <p class="pay-equiv">Hantar nilai bersamaan <strong id="cryptoAmtDollar">$2.00</strong> USD dalam <strong id="cryptoCoin">USDT</strong></p>
-              <div class="crypto-wallet" id="cryptoWallet">
-                <code id="cryptoAddr"></code>
-                <button class="copy-btn" onclick="copyCrypto()">📋 SALIN</button>
+            <!-- 2. STRIPE CARD PANEL (ACTIVE BY DEFAULT, NO QR, DIRECT CHECKOUT) -->
+            <div id="payPanelStripe" class="pay-panel active">
+              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
+                <div style="font-size:2.2rem;margin-bottom:6px;">💳</div>
+                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
+                  Card & Apple Pay Checkout
+                </h4>
+                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
+                  Pay securely with <b>Visa, Mastercard, Apple Pay, Google Pay</b>, or American Express. Direct card information entry, <b>no QR code</b>!
+                </p>
+                <button type="button" id="btnStripeCardDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:var(--ink);box-shadow:4px 4px 0 var(--vermilion);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('card')">
+                  💳 PAY WITH CARD / APPLE PAY (<span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span>) →
+                </button>
+                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 256-bit SSL encrypted · Verified and credited automatically</p>
               </div>
-              <p class="crypto-note">Selepas hantar, tekan butang di bawah untuk pengesahan:</p>
-              <button class="pay-btn crypto-confirm" onclick="confirmCrypto()">✅ SAYA DAH HANTAR PEMBAYARAN</button>
+            </div>
+
+            <!-- 3. STRIPE QR PANEL -->
+            <div id="payPanelStripeqr" class="pay-panel">
+              <div style="text-align:center;padding:14px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
+                <div id="qrInitialState" style="text-align:center;padding:8px 0;">
+                  <div style="font-size:2.2rem;margin-bottom:6px;">📱</div>
+                  <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
+                    Dynamic QR for Stripe
+                  </h4>
+                  <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;">
+                    Scan the dynamic Stripe QR code directly with your mobile banking or e-Wallet app.
+                  </p>
+                  <button class="pay-btn stripe" style="background:var(--ink);box-shadow:4px 4px 0 var(--gold);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;padding:14px 20px;font-weight:800;font-size:0.9rem;width:100%;cursor:pointer;" onclick="payStripe('qr')">
+                    ⚡ SHOW STRIPE QR CODE (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">2.00</span>)
+                  </button>
+                  <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:10px;">✨ Instant auto-verification upon phone payment</p>
+                </div>
+                
+                <div id="qrActiveBox" style="display:none;text-align:center;padding:8px 0;">
+                  <div style="background:#ffffff;padding:12px;border-radius:12px;display:inline-block;box-shadow:3px 3px 0 var(--ink);border:2px solid var(--ink);">
+                    <img id="qrCodeImage" src="" alt="Stripe QR Code" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:6px;" />
+                  </div>
+                  <p style="font-size:0.82rem;color:var(--vermilion);font-weight:700;margin-top:10px;">
+                    📲 Point your phone camera or banking app at the QR code above
+                  </p>
+                  <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+                    <a id="qrDirectLink" href="#" target="_blank" class="pay-btn stripe" style="font-size:0.75rem;padding:8px 14px;background:var(--ink);color:#fffdf7;text-decoration:none;display:inline-block;width:auto;border-radius:6px;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--gold);">
+                      🔗 Open in New Tab
+                    </a>
+                    <button onclick="resetQRState()" class="pay-btn" style="font-size:0.75rem;padding:8px 14px;background:#f5f0e6;color:var(--ink);border:2px solid var(--ink);border-radius:6px;cursor:pointer;box-shadow:2px 2px 0 var(--ink);">
+                      ↺ Change Amount
+                    </button>
+                  </div>
+                  <div id="qrPollingStatus" style="margin-top:10px;font-size:0.78rem;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <span class="pulse" style="color:var(--vermilion);">●</span> Awaiting payment from your phone...
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
           <p id="payMsg" class="pay-msg"></p>
         </div>
       </div>

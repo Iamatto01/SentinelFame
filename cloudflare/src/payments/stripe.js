@@ -4,29 +4,49 @@
 
 import {
   createPayment, updatePaymentReference, completePayment,
-  getSingerById, voteBattle,
+  getSingerById, savePaymentCreditContext, getPaymentByReference,
 } from '../lib/db.js';
-import { json, errorResponse, getOrigin, sanitizeName, validatePaymentBody } from '../lib/helpers.js';
+import { json, errorResponse, getOrigin, sanitizeName, validatePaymentBody, MIN_VOTES } from '../lib/helpers.js';
 
 /**
  * Create a Stripe Checkout Session for paying votes.
  * Mirrors payments/stripe.js from the Express version.
  */
-export async function createStripeSession(env, { singerId, votes, voterName, voterMessage, request, battle }) {
+export async function createStripeSession(env, { singerId, votes, voterName, voterMessage, request, battle, preferredMethod }) {
   const singer = await getSingerById(env, singerId);
   if (!singer) throw new Error('Singer not found');
-  const amountCents = votes * 100; // $1 per vote
+  const voteCount = parseInt(votes, 10);
+  if (isNaN(voteCount) || voteCount < 1) throw new Error('Invalid vote count');
+  const currency = (env.CURRENCY || 'myr').toLowerCase();
+  const unitAmount = parseInt(env.PRICE_PER_VOTE_CENTS, 10) || 100;
+  if (currency === 'myr' && voteCount * unitAmount < 200) {
+    throw new Error('Stripe requires a minimum of RM 2.00 (2 votes). Use DuitNow QR for 1 vote = RM 1.00.');
+  }
+  const amountCents = voteCount * unitAmount;
 
   // Pre-create pending payment
   const paymentId = await createPayment(env, {
     singer_id: singerId,
     voter_name: voterName || 'Anonymous',
     voter_message: voterMessage || '',
-    method: 'stripe',
+    method: preferredMethod === 'qr' ? 'stripe_qr' : (preferredMethod === 'grabpay' ? 'grabpay' : 'stripe'),
     vote_count: votes,
     amount_cents: amountCents,
-    currency: env.CURRENCY || 'usd',
+    currency: currency.toUpperCase(),
     status: 'pending',
+  });
+
+  // Persist the credit context up-front so completePayment can atomically
+  // credit singer votes AND the battle tally exactly once, no matter whether
+  // the webhook or the polling fallback fires first (or both, or repeatedly).
+  await savePaymentCreditContext(env, paymentId, {
+    singerId,
+    voteCount: votes,
+    amountCents,
+    battleEventId: battle?.eventId || null,
+    battleAId: battle?.aId ?? null,
+    battleBId: battle?.bId ?? null,
+    battleSide: battle?.eventId ? singerId : null,
   });
 
   // Build metadata
@@ -39,18 +59,26 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
 
   const origin = getOrigin(request);
 
+  let paymentMethodTypes = ['card'];
+  if (preferredMethod === 'qr' || preferredMethod === 'grabpay') {
+    paymentMethodTypes = currency === 'myr' ? ['grabpay'] : ['card'];
+  } else {
+    paymentMethodTypes = ['card'];
+  }
+
   const body = {
-    payment_method_types: ['card'],
+    payment_method_types: paymentMethodTypes,
     line_items: [{
       price_data: {
-        currency: env.CURRENCY || 'usd',
+        currency: currency,
         product_data: {
           name: `${votes} vote${votes > 1 ? 's' : ''} for ${singer.name}`,
           description: battle?.eventId
             ? `Battle ${battle.eventId} — support ${singer.name}`
             : `Best Artist Voting — support ${singer.name}`,
+          images: singer.image_url && singer.image_url.startsWith('http') ? [singer.image_url] : [],
         },
-        unit_amount: 100,
+        unit_amount: unitAmount,
       },
       quantity: votes,
     }],
@@ -105,20 +133,25 @@ function flattenParams(obj, prefix = '') {
 
 /**
  * Stripe webhook handler.
- * On Workers, we get the raw body as a string — verify the signature.
+ * Verifies the Stripe-Signature header (HMAC-SHA256 via Web Crypto) before
+ * trusting ANY payload. Without this, anyone could POST a fake
+ * checkout.session.completed event and receive free votes.
  */
 export async function stripeWebhook(env, request) {
   const rawBody = await request.text();
 
-  // Verify webhook signature
+  // ── Signature verification (MANDATORY) ─────────────────────────────────
   const sig = request.headers.get('stripe-signature') || '';
   const secret = env.STRIPE_WEBHOOK_SECRET || '';
+  if (!secret) {
+    console.error('STRIPE_WEBHOOK_SECRET not configured — rejecting webhook');
+    return errorResponse('Webhook not configured', 503);
+  }
+  if (!sig) return errorResponse('Missing signature', 400);
 
-  // For simplicity (and since Workers don't have the Stripe SDK), we verify
-  // by calling Stripe's API to retrieve the event by id from the payload.
-  // In production, you should use Stripe's webhook signature verification
-  // using Web Crypto API (HMAC-SHA256), or the `stripe` package via a
-  // Workers-compatible build.
+  const valid = await verifyStripeSignature(rawBody, sig, secret);
+  if (!valid) return errorResponse('Invalid signature', 400);
+
   let event;
   try {
     event = JSON.parse(rawBody);
@@ -131,20 +164,10 @@ export async function stripeWebhook(env, request) {
     if (!session) return json({ received: true });
 
     const paymentId = session.metadata?.paymentId;
-    if (paymentId) await completePayment(env, parseInt(paymentId));
-
-    // Credit battle tally if battle metadata present
-    const bEvent = session.metadata?.battleEvent;
-    if (bEvent) {
-      try {
-        await voteBattle(env,
-          session.metadata.battleEvent,
-          parseInt(session.metadata.battleA),
-          parseInt(session.metadata.battleB),
-          parseInt(session.metadata.singerId),
-          parseInt(session.metadata.votes, 10) || 1
-        );
-      } catch (e) { /* log but don't fail the webhook */ }
+    if (paymentId) {
+      // completePayment credits singer votes AND battle tally atomically,
+      // guarded by payment_credit_claims — retries are safe.
+      await completePayment(env, parseInt(paymentId));
     }
   }
 
@@ -167,8 +190,38 @@ export async function verifyAndComplete(env, sessionId) {
   return session;
 }
 
-// Lazy import for getPaymentByReference (avoid circular)
-async function getPaymentByReference(env, ref) {
-  const { getPaymentByReference: gpr } = await import('../lib/db.js');
-  return gpr(env, ref);
+/**
+ * Verify Stripe-Signature header: "t=timestamp,v1=signature".
+ * Scheme: HMAC-SHA256(secret, `${timestamp}.${payload}`) — constant-time compare.
+ */
+async function verifyStripeSignature(payload, header, secret) {
+  const parts = Object.fromEntries(
+    header.split(',').map(p => p.split('=', 2).map(s => s.trim()))
+  );
+  const timestamp = parts.t;
+  const signature = parts.v1;
+  if (!timestamp || !signature) return false;
+
+  // Replay protection: reject events older than 5 minutes
+  const age = Math.abs(Date.now() / 1000 - parseInt(timestamp, 10));
+  if (isNaN(age) || age > 300) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const mac = await crypto.subtle.sign(
+    'HMAC', key, encoder.encode(`${timestamp}.${payload}`)
+  );
+  const expected = [...new Uint8Array(mac)]
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Constant-time comparison
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return diff === 0;
 }

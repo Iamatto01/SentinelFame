@@ -17,12 +17,15 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
   // 1 vote = RM 1.00 (100 cents).
   const unitAmount = parseInt(process.env.PRICE_PER_VOTE_CENTS, 10) || 100;
   let voteCount = parseInt(votes, 10);
-  if (isNaN(voteCount) || voteCount < 1) voteCount = 2;
+  if (isNaN(voteCount) || voteCount < 1) {
+    throw new Error('Invalid vote count');
+  }
 
   // Stripe Malaysia strictly enforces a minimum transaction limit of RM 2.00 (200 cents).
-  // At RM 1.00 / vote, the minimum transaction is 2 votes.
-  if (currency === 'myr' && voteCount < 2) {
-    throw new Error('Minimum transaction limit for Stripe Malaysia is RM 2.00 (2 votes)');
+  // At RM 1.00 / vote, the minimum transaction is 2 votes. Reject explicitly —
+  // never silently bump the user's chosen vote count (that caused double-vote bugs).
+  if (currency === 'myr' && voteCount * unitAmount < 200) {
+    throw new Error('Stripe requires a minimum of RM 2.00 (2 votes). Use DuitNow QR for 1 vote = RM 1.00.');
   }
   const amountCents = voteCount * unitAmount;
 
@@ -40,6 +43,19 @@ async function createStripeSession({ singerId, votes, voterName, voterMessage, r
     amount_cents: amountCents,
     currency: currency.toUpperCase(),
     status: 'pending'
+  });
+
+  // Persist the credit context up-front so completePayment can atomically
+  // credit singer votes AND the battle tally exactly once, no matter whether
+  // the webhook or the polling fallback fires first (or both, or repeatedly).
+  db.savePaymentCreditContext(paymentId, {
+    singerId,
+    voteCount,
+    amountCents,
+    battleEventId: battle?.eventId || null,
+    battleAId: battle?.aId ?? null,
+    battleBId: battle?.bId ?? null,
+    battleSide: battle?.eventId ? singerId : null,
   });
 
   const meta = {
@@ -145,22 +161,9 @@ async function stripeWebhook(req, res) {
     const session = event.data.object;
     const paymentId = session.metadata?.paymentId;
     if (paymentId) {
+      // completePayment credits singer votes AND battle tally atomically,
+      // guarded by payment_credit_claims — retries are safe.
       db.completePayment(parseInt(paymentId, 10));
-    }
-
-    const bEvent = session.metadata?.battleEvent;
-    if (bEvent) {
-      try {
-        db.voteBattle(
-          bEvent,
-          session.metadata.battleA,
-          session.metadata.battleB,
-          session.metadata.singerId,
-          parseInt(session.metadata.votes, 10) || 1
-        );
-      } catch (e) {
-        console.error('Battle credit failed:', e.message);
-      }
     }
   }
   res.json({ received: true });
