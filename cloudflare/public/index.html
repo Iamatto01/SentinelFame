@@ -168,119 +168,20 @@
           <textarea id="voterMessage" class="vote-input vote-message" rows="2" maxlength="280"
                     placeholder="Write an encouraging message or cheering shoutout…"></textarea>
           
-          <label class="vote-label">CHOOSE PAYMENT METHOD</label>
-          <div class="pay-tabs">
-            <button type="button" class="pay-tab active" data-tab="stripe" onclick="switchPayTab('stripe')">
-              <span class="pt-icon">💳</span>
-              <span class="pt-title">1. Card / Apple Pay</span>
-              <span class="pt-sub">Visa · MC · Apple Pay</span>
-            </button>
-            <button type="button" class="pay-tab" data-tab="stripeqr" onclick="switchPayTab('stripeqr')">
-              <span class="pt-icon">📱</span>
-              <span class="pt-title">2. QR for Stripe</span>
-              <span class="pt-sub">Scan to Pay</span>
-            </button>
-            <button type="button" class="pay-tab" data-tab="grabpay" onclick="switchPayTab('grabpay')">
-              <span class="pt-icon">🟢</span>
-              <span class="pt-title">3. GrabPay</span>
-              <span class="pt-sub">Malaysia · Singapore</span>
-            </button>
-            <button type="button" class="pay-tab" data-tab="googlepay" onclick="switchPayTab('googlepay')">
-              <span class="pt-icon">🔵</span>
-              <span class="pt-title">4. Google Pay</span>
-              <span class="pt-sub">Global Wallet</span>
-            </button>
-          </div>
-
-          <div class="pay-panels">
-            <!-- 1. STRIPE CARD PANEL (ACTIVE BY DEFAULT, NO QR, DIRECT CHECKOUT) -->
-            <div id="payPanelStripe" class="pay-panel active">
-              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
-                <div style="font-size:2.2rem;margin-bottom:6px;">💳</div>
-                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
-                  Card & Apple Pay Checkout
-                </h4>
-                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
-                  Pay securely with <b>Visa, Mastercard, Apple Pay, Google Pay</b>, or American Express. Direct card information entry, <b>no QR code</b>!
-                </p>
-                <button type="button" id="btnStripeCardDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:var(--ink);box-shadow:4px 4px 0 var(--vermilion);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('card')">
-                  💳 PAY WITH CARD / APPLE PAY (<span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span>) →
-                </button>
-                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 256-bit SSL encrypted · Verified and credited automatically</p>
-              </div>
-            </div>
-
-            <!-- 3. STRIPE QR PANEL -->
-            <div id="payPanelStripeqr" class="pay-panel">
-              <div style="text-align:center;padding:14px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
-                <div id="qrInitialState" style="text-align:center;padding:8px 0;">
-                  <div style="font-size:2.2rem;margin-bottom:6px;">📱</div>
-                  <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
-                    Dynamic QR for Stripe
-                  </h4>
-                  <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;">
-                    Scan the dynamic Stripe QR code directly with your mobile banking or e-Wallet app.
-                  </p>
-                  <button class="pay-btn stripe" style="background:var(--ink);box-shadow:4px 4px 0 var(--gold);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;padding:14px 20px;font-weight:800;font-size:0.9rem;width:100%;cursor:pointer;" onclick="payStripe('qr')">
-                    ⚡ SHOW STRIPE QR CODE (<span class="cur-sym">RM </span><span id="stripeQrAmtBtn">2.00</span>)
-                  </button>
-                  <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:10px;">✨ Instant auto-verification upon phone payment</p>
-                </div>
-                
-                <div id="qrActiveBox" style="display:none;text-align:center;padding:8px 0;">
-                  <div style="background:#ffffff;padding:12px;border-radius:12px;display:inline-block;box-shadow:3px 3px 0 var(--ink);border:2px solid var(--ink);">
-                    <img id="qrCodeImage" src="" alt="Stripe QR Code" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:6px;" />
-                  </div>
-                  <p style="font-size:0.82rem;color:var(--vermilion);font-weight:700;margin-top:10px;">
-                    📲 Point your phone camera or banking app at the QR code above
-                  </p>
-                  <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
-                    <a id="qrDirectLink" href="#" target="_blank" class="pay-btn stripe" style="font-size:0.75rem;padding:8px 14px;background:var(--ink);color:#fffdf7;text-decoration:none;display:inline-block;width:auto;border-radius:6px;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--gold);">
-                      🔗 Open in New Tab
-                    </a>
-                    <button onclick="resetQRState()" class="pay-btn" style="font-size:0.75rem;padding:8px 14px;background:#f5f0e6;color:var(--ink);border:2px solid var(--ink);border-radius:6px;cursor:pointer;box-shadow:2px 2px 0 var(--ink);">
-                      ↺ Change Amount
-                    </button>
-                  </div>
-                  <div id="qrPollingStatus" style="margin-top:10px;font-size:0.78rem;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <span class="pulse" style="color:var(--vermilion);">●</span> Awaiting payment from your phone...
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 4. GRABPAY PANEL -->
-            <div id="payPanelGrabpay" class="pay-panel">
-              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
-                <div style="font-size:2.2rem;margin-bottom:6px;">🟢</div>
-                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
-                  GrabPay Checkout
-                </h4>
-                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
-                  Pay securely with your <b>GrabPay wallet</b>. You will be redirected to Grab to complete the payment.
-                </p>
-                <button type="button" id="btnGrabpayDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:#00b14f;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('grabpay')">
-                  🟢 PAY WITH GRABPAY (<span class="cur-sym">RM </span><span id="grabpayAmtBtn">2.00</span>) →
-                </button>
-                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 Secure payment via Stripe · Verified automatically</p>
-              </div>
-            </div>
-
-            <!-- 5. GOOGLE PAY PANEL -->
-            <div id="payPanelGooglepay" class="pay-panel">
-              <div style="text-align:center;padding:16px 10px;background:#fffdf7;border:2px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 var(--ink);">
-                <div style="font-size:2.2rem;margin-bottom:6px;">🔵</div>
-                <h4 style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:900;color:var(--ink);margin-bottom:6px;">
-                  Google Pay Checkout
-                </h4>
-                <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:16px;max-width:340px;margin-left:auto;margin-right:auto;">
-                  Pay securely with <b>Google Pay</b>. Use your saved cards in Google account for fast checkout.
-                </p>
-                <button type="button" id="btnGooglepayDirect" class="pay-btn stripe" style="padding:15px 20px;font-size:0.95rem;font-weight:800;background:#4285f4;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);color:#fffdf7;border-radius:6px;width:100%;cursor:pointer;" onclick="payStripe('googlepay')">
-                  🔵 PAY WITH GOOGLE PAY (<span class="cur-sym">RM </span><span id="googlepayAmtBtn">2.00</span>) →
-                </button>
-                <p style="font-size:0.72rem;color:var(--ink-soft);margin-top:12px;">🔒 Secure payment via Stripe · Verified automatically</p>
-              </div>
+          <label class="vote-label">PAYMENT</label>
+          <div class="pay-single">
+            <div style="text-align:center;padding:20px 14px;background:#fffdf7;border:2px solid var(--ink);border-radius:8px;box-shadow:4px 4px 0 var(--ink);">
+              <div style="font-size:2.5rem;margin-bottom:8px;">💳</div>
+              <h4 style="font-family:'Fraunces',serif;font-size:1.15rem;font-weight:900;color:var(--ink);margin-bottom:8px;">
+                Secure Checkout via Stripe
+              </h4>
+              <p style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:18px;max-width:360px;margin-left:auto;margin-right:auto;">
+                Pay with <b>Card, Apple Pay, Google Pay, GrabPay</b>, or other available payment methods. You will be redirected to Stripe's secure checkout page.
+              </p>
+              <button type="button" id="btnStripePay" class="pay-btn stripe" style="padding:18px 24px;font-size:1.05rem;font-weight:800;background:var(--vermilion);box-shadow:5px 5px 0 var(--ink);border:2px solid var(--ink);color:#fffdf7;border-radius:8px;width:100%;cursor:pointer;letter-spacing:0.5px;" onclick="payStripe('card')">
+                💳 PAY <span class="cur-sym">RM </span><span id="stripeAmtBtn">2.00</span> WITH STRIPE →
+              </button>
+              <p style="font-size:0.75rem;color:var(--ink-soft);margin-top:14px;">🔒 256-bit SSL encrypted · All payment methods verified automatically</p>
             </div>
           </div>
 

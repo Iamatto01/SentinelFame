@@ -398,7 +398,6 @@ async function openVote(id, presetVotes) {
   $('#payMsg').textContent = '';
   $('#voterMessage').value = ''; // clear previous message
   $('#msgArtistName').textContent = s.name.toUpperCase();
-  resetQRState();
 
   // Preload crypto config
   try {
@@ -406,9 +405,6 @@ async function openVote(id, presetVotes) {
     $('#cryptoCoin').textContent = state.cryptoConfig.currency || 'USDT';
     $('#cryptoAddr').textContent = state.cryptoConfig.wallet || 'Not configured';
   } catch { state.cryptoConfig = null; }
-
-  // Default to Stripe Card payment tab
-  switchPayTab('stripe');
 
   // Bottom: Bio, Top Song, Social, Donations
   loadBio(s);
@@ -603,9 +599,6 @@ function updateTotal() {
   // Null-safe: some amount displays may be removed from the layout
   const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
   set('#stripeAmtBtn', amount.toFixed(2));
-  set('#stripeQrAmtBtn', amount.toFixed(2));
-  set('#grabpayAmtBtn', amount.toFixed(2));
-  set('#googlepayAmtBtn', amount.toFixed(2));
   set('#megaPayAmt', amount.toFixed(2));
   set('#megaVoteCount', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
@@ -679,22 +672,6 @@ async function postJSON(url, body) {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return res.json();
 }
-let qrPollInterval = null;
-
-function resetQRState() {
-  if (qrPollInterval) {
-    clearInterval(qrPollInterval);
-    qrPollInterval = null;
-  }
-  const init = $('#qrInitialState');
-  const active = $('#qrActiveBox');
-  if (init) init.style.display = 'block';
-  if (active) active.style.display = 'none';
-  const img = $('#qrCodeImage');
-  if (img) img.src = '';
-  $('#payMsg').textContent = '';
-}
-
 // Stripe MYR enforces a RM 2.00 minimum charge (= 2 votes at RM 1/vote).
 // This is a platform limit, NOT a silent bump: we tell the user and let them choose.
 function stripeMinVotes() {
@@ -708,9 +685,9 @@ async function payStripe(method = 'card') {
     showMsg(`⚠️ Stripe requires a minimum of ${state.currencySymbol || 'RM '}${(minVotes * (state.pricePerVote || 1)).toFixed(2)} (${minVotes} votes). Please increase your votes.`);
     return;
   }
-  $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
-  const btn = $('#btnStripeCardDirect');
-  if (btn && method === 'card') {
+  $('#payMsg').textContent = '💳 Connecting to secure Stripe Checkout...';
+  const btn = $('#btnStripePay');
+  if (btn) {
     btn.disabled = true;
     btn.textContent = '⏳ Connecting to Stripe...';
   }
@@ -725,53 +702,16 @@ async function payStripe(method = 'card') {
 
     if (!r.url) {
       showMsg(r.error || 'Stripe payment gateway is not configured.');
-      if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = `💳 PAY <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="stripeAmtBtn">${getTotalAmount().toFixed(2)}</span> WITH STRIPE →`; }
       return;
     }
 
-    if (method === 'qr') {
-      // Display QR Code right inside the modal on screen!
-      $('#payMsg').textContent = '';
-      const init = $('#qrInitialState');
-      const active = $('#qrActiveBox');
-      if (init) init.style.display = 'none';
-      if (active) active.style.display = 'block';
-
-      const qrImg = $('#qrCodeImage');
-      if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(r.url)}`;
-      }
-      const direct = $('#qrDirectLink');
-      if (direct) direct.href = r.url;
-
-      // Start polling payment status every 2 seconds
-      if (qrPollInterval) clearInterval(qrPollInterval);
-      if (r.sessionId) {
-        qrPollInterval = setInterval(async () => {
-          try {
-            const st = await fetch(`/api/pay/status?session_id=${r.sessionId}`).then(res => res.json());
-            if (st.paid) {
-              clearInterval(qrPollInterval);
-              qrPollInterval = null;
-              const pollEl = $('#qrPollingStatus');
-              if (pollEl) {
-                pollEl.innerHTML = `🎉 <b style="color:#10b981;">PAYMENT RECEIVED!</b> Your votes have been recorded successfully!`;
-              }
-              setTimeout(() => {
-                closeModal();
-                location.reload();
-              }, 2000);
-            }
-          } catch { /* continue polling */ }
-        }, 2000);
-      }
-    } else {
-      // Direct Stripe Card Checkout: redirect directly to Stripe!
-      window.location.href = r.url;
-    }
+    // Redirect to Stripe Checkout — all payment methods (Card, Apple Pay, Google Pay, GrabPay, etc.)
+    // will be shown there based on Stripe Dashboard settings.
+    window.location.href = r.url;
   } catch (err) {
     showMsg('⚠️ Error: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = '💳 Try Again'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `💳 PAY <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="stripeAmtBtn">${getTotalAmount().toFixed(2)}</span> WITH STRIPE →`; }
   }
 }
 
@@ -811,18 +751,6 @@ async function payManual() {
 }
 
 // ================= PAYMENT TABS =================
-function switchPayTab(tab) {
-  document.querySelectorAll('.pay-tabs .pay-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
-  document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
-  $('#payMsg').textContent = '';
-
-  // Stripe platform enforces minimum RM 2.00 for MYR currency — inform, don't silently bump
-  if ((tab === 'stripe' || tab === 'stripeqr' || tab === 'grabpay' || tab === 'googlepay') && getVotes() < stripeMinVotes()) {
-    showMsg(`ℹ️ Stripe payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes).`);
-  }
-}
-
 // ================= CRYPTO PAYMENT =================
 function copyCrypto() {
   const addr = $('#cryptoAddr').textContent;
