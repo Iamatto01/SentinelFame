@@ -20,7 +20,7 @@ export async function createStripeSession(env, { singerId, votes, voterName, vot
   const currency = (env.CURRENCY || 'myr').toLowerCase();
   const unitAmount = parseInt(env.PRICE_PER_VOTE_CENTS, 10) || 100;
   if (currency === 'myr' && voteCount * unitAmount < 200) {
-    throw new Error('Stripe requires a minimum of RM 2.00 (2 votes). Use DuitNow QR for 1 vote = RM 1.00.');
+    throw new Error('Stripe requires a minimum of RM 2.00 (2 votes).');
   }
   const amountCents = voteCount * unitAmount;
 

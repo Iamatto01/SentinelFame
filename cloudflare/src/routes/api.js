@@ -152,31 +152,13 @@ export async function apiPaymentMethods(env) {
   return json({
     stripe: !!env.STRIPE_SECRET_KEY,
     stripe_qr: !!env.STRIPE_SECRET_KEY,
-    ewallet: true,
-    grabpay: !!env.STRIPE_SECRET_KEY,
-    tng: true,
-    shopeepay: true,
     currency: currency,
     currency_symbol: currency === 'myr' ? 'RM ' : '$',
     price_per_vote: unitPrice,
     paypal: false,
     toyyibpay: false,
     crypto: false,
-    manual: true,
-  });
-}
-
-export async function apiEwalletConfig(env) {
-  const currency = (env.CURRENCY || 'myr').toLowerCase();
-  const unitPrice = (parseInt(env.PRICE_PER_VOTE_CENTS, 10) || 100) / 100;
-  return json({
-    recipientName: env.EWALLET_RECIPIENT_NAME || 'MUHAMMAD SAIFUDIN BIN MO',
-    tngNumber: env.EWALLET_TNG_NUMBER || '012-3456789',
-    shopeePayName: env.EWALLET_SHOPEEPAY_NAME || 'MUHAMMAD SAIFUDIN BIN MO',
-    qrImage: env.EWALLET_QR_IMAGE || '/images/duitnow-qr-real.jpg',
-    currency: currency,
-    currency_symbol: currency === 'myr' ? 'RM ' : '$',
-    price_per_vote: unitPrice,
+    manual: false,
   });
 }
 
@@ -355,6 +337,7 @@ export async function apiYoutubeSearch(env, request, params, query) {
 // SSRF protection: only proxy allowlisted image hosts.
 const ALLOWED_IMAGE_DOMAINS = new Set([
   'upload.wikimedia.org',
+  'thumb.wikimedia.org',
   'commons.wikimedia.org',
   'img.youtube.com',
   'i.ytimg.com',

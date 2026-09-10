@@ -9,7 +9,7 @@ import {
   apiSingers, apiSingerById, apiSingerLookup, apiSingerDonations,
   apiCountries, apiCountriesByName,
   apiGetBattle, apiBattleVote, apiCompetitions,
-  apiPaymentMethods, apiEwalletConfig, apiPayStripe, apiPayStatus, apiPayPaypalOrder, apiPayPaypalCapture,
+  apiPaymentMethods, apiPayStripe, apiPayStatus, apiPayPaypalOrder, apiPayPaypalCapture,
   apiPayToyyibpay, apiPayManual, apiCryptoConfig, apiPayCrypto,
   apiToyyibpayCallback, paymentSuccess,
   apiYoutubeSearch, apiProxyImage, apiWikiBio, apiRecentVotes,
@@ -56,7 +56,6 @@ const routes = [
 
   // Payment methods
   ['GET',    '/api/payment-methods',             apiPaymentMethods],
-  ['GET',    '/api/ewallet-config',              apiEwalletConfig],
 
   // Payments
   ['POST',   '/api/pay/stripe',                  apiPayStripe],

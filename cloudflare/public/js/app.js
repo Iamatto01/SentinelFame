@@ -400,19 +400,6 @@ async function openVote(id, presetVotes) {
   $('#msgArtistName').textContent = s.name.toUpperCase();
   resetQRState();
 
-  // Preload e-wallet config
-  try {
-    state.ewalletConfig = await fetch('/api/ewallet-config').then(r => r.json());
-    if (state.ewalletConfig) {
-      const rec = $('#ewalletRecipient');
-      if (rec) rec.textContent = state.ewalletConfig.recipientName;
-      const num = $('#ewalletNumber');
-      if (num) num.textContent = state.ewalletConfig.tngNumber;
-      const qr = $('#ewalletQrImg');
-      if (qr && state.ewalletConfig.qrImage) qr.src = state.ewalletConfig.qrImage;
-    }
-  } catch { state.ewalletConfig = null; }
-
   // Preload crypto config
   try {
     state.cryptoConfig = await fetch('/api/crypto-config').then(r => r.json());
@@ -617,12 +604,8 @@ function updateTotal() {
   const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
   set('#stripeAmtBtn', amount.toFixed(2));
   set('#stripeQrAmtBtn', amount.toFixed(2));
-  set('#grabpayAmtBtn', amount.toFixed(2));
-  set('#ewalletAmtSync', amount.toFixed(2));
-  set('#ewalletBtnAmt', amount.toFixed(2));
   set('#megaPayAmt', amount.toFixed(2));
   set('#megaVoteCount', String(votes));
-  set('#ewalletVotesSync', String(votes));
   set('#toyyibAmtBtn', amount.toFixed(2));
   set('#cryptoAmtDollar', `$${amount.toFixed(2)}`);
   document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
@@ -720,7 +703,7 @@ async function payStripe(method = 'card') {
   const votes = getVotes();
   const minVotes = stripeMinVotes();
   if (votes < minVotes) {
-    showMsg(`⚠️ Stripe requires a minimum of ${state.currencySymbol || 'RM '}${(minVotes * (state.pricePerVote || 1)).toFixed(2)} (${minVotes} votes) for card payments. Use "DuitNow QR" tab for 1 vote = ${state.currencySymbol || 'RM '}1.00, or increase your votes.`);
+    showMsg(`⚠️ Stripe requires a minimum of ${state.currencySymbol || 'RM '}${(minVotes * (state.pricePerVote || 1)).toFixed(2)} (${minVotes} votes). Please increase your votes.`);
     return;
   }
   $('#payMsg').textContent = method === 'qr' ? '⚡ Generating Stripe QR code...' : '💳 Connecting to secure Stripe Checkout...';
@@ -828,130 +811,13 @@ async function payManual() {
 // ================= PAYMENT TABS =================
 function switchPayTab(tab) {
   document.querySelectorAll('.pay-tabs .pay-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : (tab === 'ewallet' ? 'payPanelEwallet' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+  const panelId = tab === 'stripeqr' ? 'payPanelStripeqr' : `payPanel${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
   document.querySelectorAll('.pay-panels .pay-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
   $('#payMsg').textContent = '';
 
   // Stripe platform enforces minimum RM 2.00 for MYR currency — inform, don't silently bump
   if ((tab === 'stripe' || tab === 'stripeqr') && getVotes() < stripeMinVotes()) {
-    showMsg(`ℹ️ Stripe card payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes). DuitNow QR supports 1 vote = ${state.currencySymbol || 'RM '}1.00.`);
-  }
-
-  if (tab === 'ewallet') {
-    switchEwalletSubtab(activeEwalletType || 'tng');
-  }
-}
-
-// ================= E-WALLET (TNG, SHOPEEPAY, DUITNOW, GRABPAY) =================
-let activeEwalletType = 'tng';
-
-function switchEwalletSubtab(type) {
-  activeEwalletType = type;
-  document.querySelectorAll('.ewallet-subtabs .ew-subtab, .ewallet-subtabs .pay-tab').forEach(b => {
-    b.classList.toggle('active',
-      (type === 'tng' && b.id === 'subtabTng') ||
-      (type === 'shopeepay' && b.id === 'subtabShopee') ||
-      (type === 'duitnow' && b.id === 'subtabDuitnow') ||
-      (type === 'grabpay' && b.id === 'subtabGrab')
-    );
-  });
-
-  const grabView = $('#ewalletViewGrab');
-  const qrView = $('#ewalletViewQr');
-  const idLabel = $('#ewalletIdLabel');
-  const numEl = $('#ewalletNumber');
-  const cfg = state.ewalletConfig || {};
-
-  if (type === 'grabpay') {
-    if (grabView) grabView.style.display = 'block';
-    if (qrView) qrView.style.display = 'none';
-  } else {
-    if (grabView) grabView.style.display = 'none';
-    if (qrView) qrView.style.display = 'block';
-
-    if (type === 'shopeepay') {
-      if (idLabel) idLabel.textContent = 'ShopeePay / DuitNow:';
-      if (numEl) numEl.textContent = cfg.shopeePayName || cfg.tngNumber || '012-3456789';
-    } else if (type === 'duitnow') {
-      if (idLabel) idLabel.textContent = 'DuitNow ID:';
-      if (numEl) numEl.textContent = cfg.tngNumber || '012-3456789';
-    } else {
-      // tng
-      if (idLabel) idLabel.textContent = 'Touch \'n Go / DuitNow:';
-      if (numEl) numEl.textContent = cfg.tngNumber || '012-3456789';
-    }
-  }
-  updateTotal();
-}
-
-function copyEwalletNumber() {
-  const num = $('#ewalletNumber')?.textContent || '';
-  navigator.clipboard.writeText(num).then(() => {
-    showMsg('✅ E-Wallet / DuitNow ID copied to clipboard!');
-    const msgEl = $('#payMsg');
-    if (msgEl) msgEl.style.color = '#38bdf8';
-  }).catch(() => showMsg('Failed to copy ID'));
-}
-
-async function submitEwalletPayment() {
-  const ref = ($('#ewalletRef')?.value || '').trim();
-  if (!ref) {
-    showMsg('⚠️ Please enter Transaction Reference No. (Ref / ID) after completing payment.');
-    const msgEl = $('#payMsg');
-    if (msgEl) msgEl.style.color = '#ef4444';
-    $('#ewalletRef')?.focus();
-    return;
-  }
-
-  const btn = $('#btnSubmitEwallet');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '⏳ Submitting payment verification...';
-  }
-  showMsg('⏳ Processing payment verification...');
-  const msgEl = $('#payMsg');
-  if (msgEl) msgEl.style.color = '#94a3b8';
-
-  const fd = new FormData();
-  fd.append('singerId', state.currentSinger.id);
-  fd.append('votes', getVotes());
-  fd.append('voterName', $('#voterName')?.value || 'Anonymous');
-  fd.append('voterMessage', $('#voterMessage')?.value || '');
-  fd.append('reference', ref);
-  fd.append('ewalletType', activeEwalletType);
-
-  const fileInput = $('#ewalletReceipt');
-  if (fileInput && fileInput.files && fileInput.files[0]) {
-    fd.append('receipt', fileInput.files[0]);
-  }
-
-  try {
-    const res = await fetch('/api/pay/ewallet', { method: 'POST', body: fd });
-    const r = await res.json();
-    if (r.ok || r.paymentId) {
-      showMsg('🎉 ' + (r.message || 'Payment verification submitted! Votes will be credited upon admin confirmation.'));
-      if (msgEl) msgEl.style.color = '#10b981';
-      if ($('#ewalletRef')) $('#ewalletRef').value = '';
-      if (fileInput) fileInput.value = '';
-      setTimeout(() => {
-        closeModal();
-        location.reload();
-      }, 3000);
-    } else {
-      showMsg('⚠️ ' + (r.error || 'Failed to submit payment. Please try again.'));
-      if (msgEl) msgEl.style.color = '#ef4444';
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
-      }
-    }
-  } catch (err) {
-    showMsg('⚠️ Error: ' + err.message);
-    if (msgEl) msgEl.style.color = '#ef4444';
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `✅ I HAVE TRANSFERRED <span class="cur-sym">${state.currencySymbol || 'RM '}</span><span id="ewalletBtnAmt">${getTotalAmount().toFixed(2)}</span> (SUBMIT PROOF)`;
-    }
+    showMsg(`ℹ️ Stripe payments require a minimum of ${state.currencySymbol || 'RM '}${(stripeMinVotes() * (state.pricePerVote || 1)).toFixed(2)} (${stripeMinVotes()} votes).`);
   }
 }
 
